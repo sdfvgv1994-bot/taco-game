@@ -117,7 +117,9 @@ def build_music(beat: float = 0.2) -> list[float]:
 class Audio:
     def __init__(self, enabled: bool = True):
         self.mixer = None
-        self.muted = False
+        self.muted = False      # M 鍵：全部靜音
+        self.sfx_on = True      # 設定：音效
+        self.music_on = True    # 設定：背景音樂
         self.sfx: dict = {}
         self.music = None
         self.music_channel = None
@@ -143,7 +145,7 @@ class Audio:
         return self.mixer is not None
 
     def play(self, name: str, volume: float = 1.0):
-        if self.ok and not self.muted and name in self.sfx:
+        if self.ok and not self.muted and self.sfx_on and name in self.sfx:
             sound = self.sfx[name]
             sound.set_volume(volume)
             sound.play()
@@ -152,7 +154,7 @@ class Audio:
         self.want_music = True
         if self.ok and self.music_channel is None:
             self.music_channel = self.music.play(loops=-1)
-            if self.muted and self.music_channel:
+            if self.silent and self.music_channel:
                 self.music_channel.pause()
 
     def stop_music(self, fade_ms: int = 600):
@@ -166,10 +168,20 @@ class Audio:
         ch = self.music_channel
         if not (self.ok and ch):
             return
-        if paused or self.muted:
+        if paused or self.silent:
             ch.pause()
         else:
             ch.unpause()
+
+    @property
+    def silent(self) -> bool:
+        """音樂該不該停：全部靜音、或設定裡關掉音樂。"""
+        return self.muted or not self.music_on
+
+    def apply(self, sfx_on: bool, music_on: bool, game_paused: bool = False):
+        """套用設定畫面的音效 / 音樂開關。"""
+        self.sfx_on, self.music_on = sfx_on, music_on
+        self.pause_music(game_paused)
 
     def toggle_mute(self, game_paused: bool = False) -> bool:
         self.muted = not self.muted

@@ -47,7 +47,83 @@ P1_KEYS = dict(left=pygame.K_a, right=pygame.K_d, down=pygame.K_s, cw=pygame.K_w
                drop=pygame.K_SPACE, hold=pygame.K_LSHIFT)
 P2_KEYS = dict(left=pygame.K_LEFT, right=pygame.K_RIGHT, down=pygame.K_DOWN, cw=pygame.K_UP,
                ccw=pygame.K_SLASH, drop=pygame.K_RETURN, hold=pygame.K_RSHIFT)
-DAS, ARR = 0.16, 0.04  # 長按多久開始連續移動、之後每幾秒一格
+# 暫存鍵：Shift 在注音輸入法會切換中英文，所以預設用 C（玩家 1）和 .（玩家 2），設定裡可以換回 Shift
+HOLD_KEYS = {"C / .": (pygame.K_c, pygame.K_PERIOD), "Shift": (pygame.K_LSHIFT, pygame.K_RSHIFT)}
+DAS, ARR = 0.16, 0.04  # 長按多久開始連續移動、之後每幾秒一格（設定畫面可以改）
+SPEEDS = {"慢": (0.22, 0.06), "中": (0.16, 0.04), "快": (0.10, 0.02)}  # 長按移動速度：(DAS, ARR)
+
+# 上排數字鍵和右邊數字鍵盤都能選選單
+DIGIT_KEYS = {getattr(pygame, f"K_{i}"): i for i in range(10)}
+DIGIT_KEYS.update({getattr(pygame, f"K_KP{i}"): i for i in range(10)})
+BACK_KEYS = (pygame.K_ESCAPE, pygame.K_BACKSPACE)
+
+
+def digit(key) -> int | None:
+    """按下的是數字鍵（上排或數字鍵盤）就回傳數字，不是就回傳 None。"""
+    return DIGIT_KEYS.get(key)
+
+
+HOLD_NAME = ["C / ."]  # 目前的暫存鍵設定（說明文字用）
+
+
+def set_hold(name: str):
+    """套用暫存鍵（C / . 或 Shift）。"""
+    HOLD_NAME[0] = name if name in HOLD_KEYS else "C / ."
+    P1_KEYS["hold"], P2_KEYS["hold"] = HOLD_KEYS[HOLD_NAME[0]]
+
+
+def hold_names(name: str) -> tuple[str, str]:
+    """說明文字用：玩家 1、玩家 2 的暫存鍵名稱。"""
+    return ("左 Shift", "右 Shift") if name == "Shift" else ("C", ".")
+
+
+def set_speed(name: str):
+    """套用長按移動速度（慢 / 中 / 快）。"""
+    global DAS, ARR
+    DAS, ARR = SPEEDS.get(name, SPEEDS["中"])
+
+
+class Settings:
+    """遊戲設定，存在 tetris/settings.json（不在 git 裡）。"""
+
+    DEFAULTS = {"sfx": True, "music": True, "ghost": True, "countdown": True, "speed": "中", "hold": "C / ."}
+    # 設定畫面上的順序：(按鍵數字, 欄位, 名稱)
+    ITEMS = [(1, "sfx", "音效"), (2, "music", "背景音樂"), (3, "ghost", "落點預覽"),
+             (4, "countdown", "開局倒數 3 秒"), (5, "speed", "長按移動速度"), (6, "hold", "暫存鍵")]
+
+    def __init__(self, path: Path):
+        self.path = path
+        self.data = dict(self.DEFAULTS)
+        try:
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(saved, dict):
+                self.data.update({k: v for k, v in saved.items()
+                                  if k in self.DEFAULTS and type(v) is type(self.DEFAULTS[k])})
+        except (OSError, ValueError):
+            pass
+        if self.data["speed"] not in SPEEDS:
+            self.data["speed"] = "中"
+        if self.data["hold"] not in HOLD_KEYS:
+            self.data["hold"] = "C / ."
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def toggle(self, key: str):
+        """開關類切換開 / 關；速度在 慢 → 中 → 快 之間輪流。存檔失敗也照常用。"""
+        if key in ("speed", "hold"):
+            names = list(SPEEDS if key == "speed" else HOLD_KEYS)
+            self.data[key] = names[(names.index(self.data[key]) + 1) % len(names)]
+        else:
+            self.data[key] = not self.data[key]
+        try:
+            self.path.write_text(json.dumps(self.data, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
+
+    def label(self, key: str) -> str:
+        v = self.data[key]
+        return v if key in ("speed", "hold") else ("開" if v else "關")
 
 
 def load_font(size):
@@ -152,7 +228,7 @@ def draw_board(screen, p, bx, by, cell, tint, ghost=True):
         screen.blit(shade, (bx, by))
 
 
-def draw_player(screen, p, left, fonts, name, tint, info):
+def draw_player(screen, p, left, fonts, name, tint, info, ghost=True):
     """大板子：暫存、下一個、垃圾條、提示文字。"""
     big, small = fonts
     hold_x = left
@@ -160,7 +236,7 @@ def draw_player(screen, p, left, fonts, name, tint, info):
     bx = meter_x + METER + 6
     next_x = bx + BOARD_W + 10
 
-    draw_board(screen, p, bx, TOP, CELL, tint)
+    draw_board(screen, p, bx, TOP, CELL, tint, ghost)
 
     # 垃圾條
     pygame.draw.rect(screen, GRID_BG, (meter_x, TOP, METER, BOARD_H))
@@ -279,7 +355,15 @@ def draw_menu(screen, fonts, state, cfg=None):
     if state == "menu":
         for i, (label, _) in enumerate(MODE_LIST, 1):
             center_text(screen, f"{i}  {label}", small, 170 + (i - 1) * 42)
-        center_text(screen, "Esc 離開　M 音效 / 音樂開關", small, 170 + len(MODE_LIST) * 42 + 6, DIM)
+        center_text(screen, "0  設定", small, 170 + len(MODE_LIST) * 42, (120, 220, 235))
+        center_text(screen, "數字鍵選擇（上排或數字鍵盤都可以）　Esc 離開　M 全部靜音",
+                    small, 170 + len(MODE_LIST) * 42 + 40, DIM)
+    elif state == "settings":
+        center_text(screen, "設定", big, 170, TEXT)
+        for i, (k, key, name) in enumerate(Settings.ITEMS):
+            center_text(screen, f"{k}  {name}：{cfg.label(key)}", small, 240 + i * 44)
+        center_text(screen, "按數字切換（會自動存檔）　Esc / Backspace 返回",
+                    small, 240 + len(Settings.ITEMS) * 44 + 10, DIM)
     else:
         center_text(screen, cfg["title"], big, 180, TEXT)
         items = [f"{i}  對電腦（{n}）" for i, n in enumerate(DIFFICULTY, 1)]
@@ -287,10 +371,11 @@ def draw_menu(screen, fonts, state, cfg=None):
             items.append("4  雙人同機")
         for i, t in enumerate(items):
             center_text(screen, t, small, 260 + i * 44)
-        center_text(screen, "Esc 返回", small, 260 + len(items) * 44 + 10, DIM)
-    lines = ["玩家 1：A D 移動　S 軟降　W 順轉　Q 逆轉　空白 硬降　左 Shift 暫存",
-             "玩家 2：← → 移動　↓ 軟降　↑ 順轉　/ 逆轉　Enter 硬降　右 Shift 暫存",
-             "對電腦時兩組按鍵都能用　P 暫停　Tab / 滑鼠點小板子：換攻擊目標"]
+        center_text(screen, "Esc / Backspace 返回", small, 260 + len(items) * 44 + 10, DIM)
+    h1, h2 = hold_names(HOLD_NAME[0])
+    lines = [f"玩家 1：A D 移動　S 軟降　W 順轉　Q 逆轉　空白 硬降　{h1} 暫存",
+             f"玩家 2：← → 移動　↓ 軟降　↑ 順轉　/ 逆轉　Enter 硬降　{h2} 暫存",
+             "對電腦時兩組按鍵都能用　P 或 Esc 暫停　Tab / 滑鼠點小板子：換攻擊目標"]
     for i, t in enumerate(lines):
         center_text(screen, t, small, HEIGHT - 90 + i * 26, DIM)
     pygame.display.flip()
@@ -342,7 +427,7 @@ def draw_result(screen, fonts, match, cfg, names, wins, records_note):
             lines.append(f"{rank}. {names[i]}　" + (fmt_time(t) if t is not None else "未完成"))
     if records_note:
         lines.append(records_note)
-    lines.append("空白鍵 / Enter 再來一局，Esc 回選單")
+    lines.append("空白鍵 / Enter / R 再來一局，Esc / Backspace 回選單")
     h = 70 + 30 * len(lines)
     panel = pygame.Surface((620, h), pygame.SRCALPHA)
     panel.fill((10, 12, 20, 225))
@@ -363,8 +448,12 @@ def main():
     clock = pygame.time.Clock()
     audio = Audio()
     records = Records(Path(__file__).parent / "records.json")
+    settings = Settings(Path(__file__).parent / "settings.json")
+    set_speed(settings["speed"])
+    set_hold(settings["hold"])
+    audio.apply(settings["sfx"], settings["music"])
 
-    state, cfg, diff = "menu", None, None  # state: menu / diff / play
+    state, cfg, diff = "menu", None, None  # state: menu / diff / settings / play
     match = controls = None
     ais: dict[int, AI] = {}
     names: list[str] = []
@@ -394,6 +483,10 @@ def main():
         cfg, diff, state = c, d, "play"
         countdown, paused, scored, last_beep, last_tick, records_note = 3.0, False, False, 0, None, ""
         audio.stop_music(0)
+        if not settings["countdown"]:  # 設定關掉倒數：直接開始
+            countdown = 0.0
+            audio.play("go")
+            audio.start_music()
         match = Match(n=c["n"], mode=c["kind"], time_limit=c.get("time"), ko_limit=c.get("ko"))
         seen = [(True, 0)] * c["n"]
         two_humans = d is None
@@ -418,12 +511,12 @@ def main():
             left2 = left1 + PANEL_W + GAP
             for i, left in enumerate((left1, left2)):
                 draw_player(screen, match.players[i], left, fonts, names[i], tints[i],
-                            player_info(match.players[i], match, cfg))
+                            player_info(match.players[i], match, cfg), settings["ghost"])
             if cfg["kind"] != "battle":
                 center_text(screen, f"{wins[0]} : {wins[1]}", fonts[0], 40, TEXT)
         else:
             draw_player(screen, match.players[0], left1, fonts, names[0], tints[0],
-                        player_info(match.players[0], match, cfg))
+                        player_info(match.players[0], match, cfg), settings["ghost"])
             x0 = left1 + PANEL_W + 40
             for k in range(1, n):
                 col, row = (k - 1) % 3, (k - 1) // 3
@@ -469,33 +562,55 @@ def main():
                 continue
             if ev.type != pygame.KEYDOWN:
                 continue
-            if ev.key == pygame.K_ESCAPE:
-                if state == "menu":
+            num = digit(ev.key)
+            if ev.key == pygame.K_m:
+                audio.toggle_mute(paused)
+            elif state == "menu":
+                if ev.key == pygame.K_ESCAPE:
                     pygame.quit()
                     return
-                state = "menu" if state == "diff" else "menu"
-                audio.stop_music()
-            elif ev.key == pygame.K_m:
-                audio.toggle_mute(paused)
-            elif state == "menu" and ev.key in MODE_KEYS[:len(MODE_LIST)]:
-                c = MODE_LIST[MODE_KEYS.index(ev.key)][1]
-                if c.get("ai"):
-                    cfg, state = c, "diff"
+                if num == 0:
+                    state = "settings"
+                elif num is not None and 1 <= num <= len(MODE_LIST):
+                    c = MODE_LIST[num - 1][1]
+                    if c.get("ai"):
+                        cfg, state = c, "diff"
+                    else:
+                        start(c, "普通")
+            elif state == "settings":
+                if ev.key in BACK_KEYS:
+                    state = "menu"
                 else:
-                    start(c, "普通")
+                    item = next((key for k, key, _ in Settings.ITEMS if k == num), None)
+                    if item:
+                        settings.toggle(item)
+                        set_speed(settings["speed"])
+                        set_hold(settings["hold"])
+                        audio.apply(settings["sfx"], settings["music"])
             elif state == "diff":
                 names_d = list(DIFFICULTY)
-                keys = [pygame.K_1, pygame.K_2, pygame.K_3]
-                if ev.key in keys:
-                    start(cfg, names_d[keys.index(ev.key)])
-                elif ev.key == pygame.K_4 and cfg.get("two"):
+                if ev.key in BACK_KEYS:
+                    state = "menu"
+                elif num in (1, 2, 3):
+                    start(cfg, names_d[num - 1])
+                elif num == 4 and cfg.get("two"):
                     start(cfg, None)
             elif state == "play":
-                if ev.key == pygame.K_p and not match.over:
+                if match.over:
+                    if ev.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_r):
+                        start(cfg, diff)
+                    elif ev.key in BACK_KEYS:
+                        state = "menu"
+                        audio.stop_music()
+                elif ev.key in (pygame.K_p, pygame.K_ESCAPE):
                     paused = not paused
                     audio.pause_music(paused)
-                elif match.over and ev.key in (pygame.K_SPACE, pygame.K_RETURN):
-                    start(cfg, diff)
+                elif paused:
+                    if ev.key == pygame.K_r:
+                        start(cfg, diff)
+                    elif ev.key == pygame.K_BACKSPACE:
+                        state, paused = "menu", False
+                        audio.stop_music()
                 elif ev.key in (pygame.K_TAB, pygame.K_t) and len(match.players) > 2:
                     match.cycle_target(0)
                 elif countdown <= 0 and not paused and not match.over:
@@ -503,11 +618,11 @@ def main():
                         c.keydown(ev.key, match, i)
                     flush_sfx()
 
-        if state in ("menu", "diff"):
-            draw_menu(screen, fonts, state, cfg)
+        if state in ("menu", "diff", "settings"):
+            draw_menu(screen, fonts, state, settings if state == "settings" else cfg)
             continue
 
-        if countdown > 0:
+        if countdown > 0 and not paused:
             countdown -= dt
             beep = int(countdown) + 1 if countdown > 0 else 0
             if beep != last_beep:  # 3、2、1 各響一聲，開始時響「Go」並開音樂
@@ -552,11 +667,16 @@ def main():
 
         screen.fill(BG)
         draw_scene()
-        if countdown > 0:
+        if paused:
+            shade = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            shade.fill((0, 0, 0, 150))
+            screen.blit(shade, (0, 0))
+            center_text(screen, "暫停中", fonts[0], TOP + BOARD_H // 2 - 40)
+            center_text(screen, "Esc 或 P：返回遊戲　R：重新開始　Backspace：回主選單",
+                        fonts[1], TOP + BOARD_H // 2 + 10)
+        elif countdown > 0:
             center_text(screen, str(int(countdown) + 1), fonts[0], TOP + BOARD_H // 2, (255, 220, 90),
                         x=20 + PANEL_W // 2 if len(match.players) != 2 else None)
-        elif paused:
-            center_text(screen, "暫停中（P 繼續）", fonts[0], TOP + BOARD_H // 2)
         elif match.over:
             draw_result(screen, fonts, match, cfg, names, wins, records_note)
         pygame.display.flip()

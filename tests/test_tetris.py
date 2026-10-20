@@ -329,3 +329,72 @@ def test_six_player_battle_with_ais_runs():
         if m.over:
             break
     assert m.over and sorted(m.ranks) == list(range(6))
+
+
+# ---- 選單按鍵、設定（tetris.py 需要 pygame） ----
+def _tetris_ui():
+    import os
+    import pytest
+    pytest.importorskip("pygame")
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    import tetris as ui
+    return ui
+
+
+def test_number_row_and_keypad_both_select():
+    ui = _tetris_ui()
+    import pygame
+    for i in range(10):
+        assert ui.digit(getattr(pygame, f"K_{i}")) == i
+        assert ui.digit(getattr(pygame, f"K_KP{i}")) == i
+    assert ui.digit(pygame.K_a) is None
+
+
+def test_settings_toggle_and_save(tmp_path):
+    ui = _tetris_ui()
+    path = tmp_path / "settings.json"
+    s = ui.Settings(path)
+    assert s["ghost"] and s["speed"] == "中"
+    s.toggle("ghost")
+    s.toggle("speed")
+    assert not s["ghost"] and s["speed"] == "快"
+    s.toggle("speed")
+    assert s["speed"] == "慢"
+    again = ui.Settings(path)          # 重開遊戲還記得
+    assert not again["ghost"] and again["speed"] == "慢"
+    assert again.label("ghost") == "關" and again.label("speed") == "慢"
+
+
+def test_settings_ignore_broken_file(tmp_path):
+    ui = _tetris_ui()
+    path = tmp_path / "settings.json"
+    path.write_text('{"ghost": "yes", "speed": "超快", "other": 1}', encoding="utf-8")
+    s = ui.Settings(path)
+    assert s["ghost"] is True and s["speed"] == "中" and "other" not in s.data
+
+
+def test_speed_presets():
+    ui = _tetris_ui()
+    ui.set_speed("快")
+    assert (ui.DAS, ui.ARR) == ui.SPEEDS["快"]
+    ui.set_speed("不存在")
+    assert (ui.DAS, ui.ARR) == ui.SPEEDS["中"]
+
+
+def test_hold_key_setting():
+    ui = _tetris_ui()
+    import pygame
+    ui.set_hold("C / .")
+    assert ui.P1_KEYS["hold"] == pygame.K_c and ui.P2_KEYS["hold"] == pygame.K_PERIOD
+    ui.set_hold("Shift")
+    assert ui.P1_KEYS["hold"] == pygame.K_LSHIFT and ui.P2_KEYS["hold"] == pygame.K_RSHIFT
+    assert ui.hold_names("Shift") == ("左 Shift", "右 Shift")
+    ui.set_hold("C / .")
+
+
+def test_hold_defaults_to_c_not_shift(tmp_path):
+    ui = _tetris_ui()
+    s = ui.Settings(tmp_path / "settings.json")
+    assert s["hold"] == "C / ."      # 預設不用 Shift，避免切到中英文
+    s.toggle("hold")
+    assert s["hold"] == "Shift"
