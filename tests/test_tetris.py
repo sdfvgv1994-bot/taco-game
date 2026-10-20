@@ -169,3 +169,41 @@ def test_perfect_clear_triggers_glow():
     p.x, p.rot, p.y = 3, 0, 0
     p.hard_drop()
     assert p.glow == 0.0 and p.outbox == 6 and "全清" in p.last_event
+
+
+def test_engine_emits_sound_events():
+    p = new_player("O")
+    p.move(-1)
+    p.rotate(1)
+    p.hard_drop()
+    assert p.sfx[:1] == ["move"] and "drop" in p.sfx and "lock" in p.sfx
+    p.sfx.clear()
+    p.receive(2)
+    assert p.sfx == ["warn"]
+
+
+def test_clear_and_perfect_events():
+    p = new_player("I")
+    stack_with_gap(p, 4)
+    drop_vertical_i_at_right(p)
+    assert "clear4" in p.sfx
+    q = new_player("I")
+    q.grid[ROWS - 1] = ["G"] * COLS
+    for x in range(3, 7):
+        q.grid[ROWS - 1][x] = None
+    q.x, q.rot, q.y = 3, 0, 0
+    q.hard_drop()
+    assert "perfect" in q.sfx
+
+
+def test_synthesised_sounds_are_valid_and_audio_can_be_disabled():
+    import sound
+    for name, samples in sound.build_sfx().items():
+        assert samples and max(abs(s) for s in samples) <= 1.5, name
+    assert len(sound.to_bytes(samples)) == 2 * len(samples)
+    assert sound.freq("A4") == 440.0 and sound.freq("A5") == 880.0
+    a = sound.Audio(enabled=False)
+    a.play("move")
+    a.start_music()
+    a.stop_music()
+    assert not a.ok and a.toggle_mute() is True

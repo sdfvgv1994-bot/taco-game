@@ -64,6 +64,7 @@ class Player:
         self.last_event = ""          # 畫面上顯示的提示，例如「四行消除」
         self.event_age = 0.0
         self.glow = 99.0              # 全清後經過的秒數，畫面用來顯示綠光
+        self.sfx: list[str] = []      # 這一步發生的音效事件，由畫面取走播放
         self.last_rotate = False      # 最後一個動作是不是旋轉（T 轉判定用）
         self.piece_no = 0
         self.spawn()
@@ -129,6 +130,7 @@ class Player:
             return False
         self.x += dx
         self.last_rotate = False
+        self.sfx.append("move")
         self._moved()
         return True
 
@@ -140,6 +142,7 @@ class Player:
             if self.valid(self.kind, rot, self.x + kx, self.y + ky):
                 self.rot, self.x, self.y = rot, self.x + kx, self.y + ky
                 self.last_rotate = True
+                self.sfx.append("rotate")
                 self._moved()
                 return True
         return False
@@ -150,6 +153,7 @@ class Player:
         old, self.hold_kind = self.hold_kind, self.kind
         self.spawn(old)
         self.can_hold = False
+        self.sfx.append("hold")
         return True
 
     def hard_drop(self):
@@ -158,6 +162,7 @@ class Player:
         if self.ghost_y() != self.y:
             self.last_rotate = False
         self.y = self.ghost_y()
+        self.sfx.append("drop")
         self.lock()
 
     # ---- 時間 ----
@@ -190,6 +195,8 @@ class Player:
                 return
             self.grid[cy][cx] = color
         cleared = self._clear_lines()
+        if not cleared:
+            self.sfx.append("tspin" if tspin else "lock")
         if tspin and not cleared:
             self._event("T 轉！")
         if cleared:
@@ -212,6 +219,7 @@ class Player:
             if self.combo >= 1:
                 label += f" 連擊 x{self.combo}"
             self._event(label)
+            self.sfx.append("perfect" if self.glow == 0.0 else "tspin" if tspin else f"clear{cleared}")
             while attack and self.pending:  # 先抵銷自己身上的垃圾
                 take = min(attack, self.pending[0])
                 attack -= take
@@ -253,6 +261,7 @@ class Player:
     def receive(self, lines: int):
         if lines > 0:
             self.pending.append(lines)
+            self.sfx.append("warn")
 
     def _apply_garbage(self):
         budget = MAX_GARBAGE_PER_LOCK
@@ -266,7 +275,7 @@ class Player:
             for _ in range(n):
                 if any(c is not None for c in self.grid[0]):
                     self.alive = False  # 被頂出畫面
-                row = [GARBAGE] * COLS
+                    row = [GARBAGE] * COLS
                 row[hole] = None
                 self.grid = self.grid[1:] + [row]
 

@@ -21,6 +21,7 @@ import pygame  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ai import AI, DIFFICULTY  # noqa: E402
 from engine import COLS, GARBAGE, ROWS, SHAPES, Match  # noqa: E402
+from sound import Audio  # noqa: E402
 
 CELL = 28
 BOARD_W, BOARD_H = COLS * CELL, ROWS * CELL
@@ -201,7 +202,7 @@ def draw_menu(screen, fonts):
     center_text(screen, "Esc 離開", small, 230 + len(items) * 44 + 10, DIM)
     lines = ["玩家 1：A D 移動　S 軟降　W 順轉　Q 逆轉　空白 硬降　左 Shift 暫存",
              "玩家 2：← → 移動　↓ 軟降　↑ 順轉　/ 逆轉　Enter 硬降　右 Shift 暫存",
-             "對電腦時兩組按鍵都能用　P 暫停"]
+             "對電腦時兩組按鍵都能用　P 暫停　M 音效 / 音樂開關"]
     for i, t in enumerate(lines):
         center_text(screen, t, small, HEIGHT - 110 + i * 28, DIM)
     pygame.display.flip()
@@ -217,15 +218,32 @@ def main():
     pygame.display.set_caption("俄羅斯方塊對戰")
     fonts = (load_font(30), load_font(18))
     clock = pygame.time.Clock()
+    audio = Audio()
 
     state, mode = "menu", None
     match = ai = controls = None
     wins = [0, 0]
     countdown, paused, scored = 0.0, False, False
+    last_beep = 0
+    alive_before = [True, True]
+
+    def flush_sfx():
+        """取走兩邊玩家這一步的音效事件並播放（對電腦時，電腦只發出攻擊相關的聲音）。"""
+        for i, p in enumerate(match.players):
+            events, p.sfx = p.sfx, []
+            for name in dict.fromkeys(events):  # 同一類聲音一次只播一個
+                if i == 1 and mode[1]:
+                    if name.startswith("clear") or name in ("tspin", "perfect"):
+                        audio.play(name, 0.4)
+                else:
+                    audio.play(name)
 
     def start(m):
-        nonlocal match, ai, controls, state, mode, countdown, paused, scored
+        nonlocal match, ai, controls, state, mode, countdown, paused, scored, last_beep
         mode, state, countdown, paused, scored = m, "play", 3.0, False, False
+        last_beep = 0
+        alive_before[:] = [True, True]
+        audio.stop_music(0)
         match = Match()
         if m[1]:
             ai = AI(DIFFICULTY[m[0]])
@@ -247,16 +265,21 @@ def main():
                     pygame.quit()
                     return
                 state = "menu"
+                audio.stop_music()
+            elif ev.key == pygame.K_m:
+                audio.toggle_mute(paused)
             elif state == "menu" and ev.key in MODES:
                 start(MODES[ev.key])
             elif state == "play":
                 if ev.key == pygame.K_p and not match.over:
                     paused = not paused
+                    audio.pause_music(paused)
                 elif match.over and ev.key in (pygame.K_SPACE, pygame.K_RETURN):
                     start(mode)
                 elif countdown <= 0 and not paused and not match.over:
                     for i, c in enumerate(controls):
                         c.keydown(ev.key, match, i)
+                    flush_sfx()
 
         if state == "menu":
             draw_menu(screen, fonts)
@@ -264,6 +287,12 @@ def main():
 
         if countdown > 0:
             countdown -= dt
+            beep = int(countdown) + 1 if countdown > 0 else 0
+            if beep != last_beep:  # 3、2、1 各響一聲，開始時響「Go」並開音樂
+                audio.play("countdown" if beep else "go")
+                if not beep:
+                    audio.start_music()
+                last_beep = beep
         elif not paused and not match.over:
             pressed = pygame.key.get_pressed()
             for i, c in enumerate(controls):
@@ -271,10 +300,20 @@ def main():
             if ai:
                 ai.update(dt, match.players[1])
             match.update(dt)
-            if match.over and not scored:
-                scored = True
-                if match.winner in (0, 1):
-                    wins[match.winner] += 1
+            flush_sfx()
+
+        # 勝負、死亡音效：硬降也可能結束比賽，所以不放在上面的更新區塊裡
+        for i, p in enumerate(match.players):
+            if alive_before[i] and not p.alive and (i == 0 or not mode[1]):
+                audio.play("dead")
+            alive_before[i] = p.alive
+        if match.over and not scored:
+            scored = True
+            audio.stop_music(1200)
+            if match.winner in (0, 1):
+                wins[match.winner] += 1
+                if match.winner == 0 or not mode[1]:
+                    audio.play("win")
 
         screen.fill(BG)
         names = ("玩家 1", "電腦（%s）" % mode[0]) if mode[1] else ("玩家 1", "玩家 2")
