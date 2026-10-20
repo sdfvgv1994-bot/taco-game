@@ -4,9 +4,11 @@
 
 | 資料夾 | 內容 | 執行 |
 | --- | --- | --- |
-| [`snake/`](snake/) | 貪食蛇 | `python snake/snake.py` |
-| [`kaleidoscope/`](kaleidoscope/) | 萬花筒畫板 | `python kaleidoscope/kaleidoscope.py` |
-| [`tetris/`](tetris/) | 俄羅斯方塊對戰（雙人 / 對電腦） | `python tetris/tetris.py` |
+| [`snake/`](snake/) | 貪食蛇 | 雙擊 `啟動貪食蛇.bat`，或 `python snake/snake.py` |
+| [`kaleidoscope/`](kaleidoscope/) | 萬花筒畫板 | 雙擊 `啟動萬花筒.bat`，或 `python kaleidoscope/kaleidoscope.py` |
+| [`tetris/`](tetris/) | 俄羅斯方塊對戰（雙人 / 對電腦） | 雙擊 `啟動俄羅斯方塊.bat`，或 `python tetris/tetris.py` |
+
+Windows 的 `.bat` 啟動檔出錯時，視窗會停住顯示錯誤訊息，也會記在 `.cache\` 裡的 `*_log.txt`。
 
 ## 安裝
 

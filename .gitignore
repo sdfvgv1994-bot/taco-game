@@ -8,3 +8,4 @@ kaleidoscope/drawings/
 .DS_Store
 .pytest_cache/
 tetris/records.json
+tetris/settings.json
