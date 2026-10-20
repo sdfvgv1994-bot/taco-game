@@ -11,6 +11,7 @@ MAX_GARBAGE_PER_LOCK = 8
 ATTACK = {0: 0, 1: 0, 2: 1, 3: 2, 4: 4}  # 消幾行 -> 送出幾行垃圾
 COMBO_BONUS = [0, 0, 1, 1, 2, 2, 3, 3, 4]
 PERFECT_CLEAR = 6
+TSPIN_ATTACK = {1: 2, 2: 4, 3: 6}  # T 轉消幾行 -> 送出幾行垃圾
 GARBAGE = "G"
 
 _BASE = {
@@ -62,6 +63,8 @@ class Player:
         self.soft = False
         self.last_event = ""          # 畫面上顯示的提示，例如「四行消除」
         self.event_age = 0.0
+        self.glow = 99.0              # 全清後經過的秒數，畫面用來顯示綠光
+        self.last_rotate = False      # 最後一個動作是不是旋轉（T 轉判定用）
         self.piece_no = 0
         self.spawn()
 
@@ -125,6 +128,7 @@ class Player:
         if not self.alive or not self.valid(self.kind, self.rot, self.x + dx, self.y):
             return False
         self.x += dx
+        self.last_rotate = False
         self._moved()
         return True
 
@@ -135,6 +139,7 @@ class Player:
         for kx, ky in KICKS:
             if self.valid(self.kind, rot, self.x + kx, self.y + ky):
                 self.rot, self.x, self.y = rot, self.x + kx, self.y + ky
+                self.last_rotate = True
                 self._moved()
                 return True
         return False
@@ -150,12 +155,15 @@ class Player:
     def hard_drop(self):
         if not self.alive:
             return
+        if self.ghost_y() != self.y:
+            self.last_rotate = False
         self.y = self.ghost_y()
         self.lock()
 
     # ---- 時間 ----
     def update(self, dt: float):
         self.event_age += dt
+        self.glow += dt
         if not self.alive:
             return
         if self.on_ground():
@@ -168,32 +176,39 @@ class Player:
         while self.fall_acc >= interval and not self.on_ground():
             self.fall_acc -= interval
             self.y += 1
+            self.last_rotate = False
         if self.on_ground():
             self.fall_acc = 0.0
 
     # ---- 落地、消行、攻擊 ----
     def lock(self):
         color = self.kind
+        tspin = self._is_tspin()  # 要在方塊寫進格子前判定
         for cx, cy in self.cells():
             if cy < 0:
                 self.alive = False
                 return
             self.grid[cy][cx] = color
         cleared = self._clear_lines()
+        if tspin and not cleared:
+            self._event("T 轉！")
         if cleared:
             self.combo += 1
-            attack = ATTACK[cleared] + COMBO_BONUS[min(self.combo, len(COMBO_BONUS) - 1)]
+            attack = (TSPIN_ATTACK[cleared] if tspin else ATTACK[cleared]) + COMBO_BONUS[min(self.combo, len(COMBO_BONUS) - 1)]
             label = {1: "單行", 2: "雙行", 3: "三行", 4: "四行消除！"}[cleared]
-            if cleared == 4:
+            if tspin:
+                label = f"T 轉{label}"
+            if cleared == 4 or tspin:
                 if self.b2b:
                     attack += 1
-                    label = "連續四行！"
+                    label = "連續 " + label
                 self.b2b = True
             else:
                 self.b2b = False
             if all(c is None for row in self.grid for c in row):
                 attack += PERFECT_CLEAR
                 label = "全清！"
+                self.glow = 0.0
             if self.combo >= 1:
                 label += f" 連擊 x{self.combo}"
             self._event(label)
@@ -211,6 +226,18 @@ class Player:
         self.can_hold = True
         if self.alive:
             self.spawn()
+
+    def _is_tspin(self) -> bool:
+        """T 方塊以旋轉落地，且中心四個斜角至少三個被牆或方塊佔住。"""
+        if self.kind != "T" or not self.last_rotate:
+            return False
+        cx, cy = self.x + 1, self.y + 1
+        filled = 0
+        for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+            x, y = cx + dx, cy + dy
+            if x < 0 or x >= COLS or y >= ROWS or (y >= 0 and self.grid[y][x] is not None):
+                filled += 1
+        return filled >= 3
 
     def _event(self, text):
         self.last_event, self.event_age = text, 0.0

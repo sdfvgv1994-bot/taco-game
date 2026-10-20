@@ -129,3 +129,43 @@ def test_best_placement_clears_available_line():
         p.grid[ROWS - 1][x] = None
     rot, x = best_placement(p)
     assert rot in (0, 2) and x == 3
+
+
+def t_spin_setup():
+    """T 朝下卡進凹槽，消兩行。"""
+    p = new_player("T")
+    p.grid[ROWS - 1] = ["G"] * COLS
+    p.grid[ROWS - 1][4] = None
+    p.grid[ROWS - 2] = ["G"] * COLS
+    p.grid[ROWS - 2][3] = p.grid[ROWS - 2][4] = p.grid[ROWS - 2][5] = None
+    p.grid[ROWS - 3][3] = p.grid[ROWS - 3][5] = "G"  # 上方有突出，四個斜角都被佔住
+    p.grid[3][0] = "G"
+    return p
+
+
+def test_t_spin_double_sends_four():
+    p = t_spin_setup()
+    p.rot, p.x, p.y = 2, 3, ROWS - 3   # T 朝下，尖端對準缺口，從上方落到位
+    assert p.valid("T", 2, 3, ROWS - 3)
+    p.last_rotate = True
+    p.hard_drop()
+    assert p.lines == 2 and p.outbox == 4
+    assert "T 轉" in p.last_event
+
+
+def test_plain_drop_is_not_t_spin():
+    p = t_spin_setup()
+    p.rot, p.x, p.y = 2, 3, ROWS - 3
+    p.last_rotate = False
+    p.hard_drop()
+    assert "T 轉" not in p.last_event
+
+
+def test_perfect_clear_triggers_glow():
+    p = new_player("I")
+    p.grid[ROWS - 1] = ["G"] * COLS
+    for x in range(3, 7):
+        p.grid[ROWS - 1][x] = None
+    p.x, p.rot, p.y = 3, 0, 0
+    p.hard_drop()
+    assert p.glow == 0.0 and p.outbox == 6 and "全清" in p.last_event

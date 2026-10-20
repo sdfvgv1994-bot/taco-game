@@ -1,7 +1,7 @@
 """俄羅斯方塊對戰。
 
 選單：1~3 對電腦（簡單 / 普通 / 困難），4 雙人對戰，Esc 離開。
-消行會把垃圾行送給對手：雙行 1、三行 2、四行 4，連擊與連續四行有加成；
+消行會把垃圾行送給對手：雙行 1、三行 2、四行 4，T 轉、連擊與連續四行有加成；全清會閃綠光；
 自己落地前可以用消行抵銷對方送來的垃圾（左側紅條）。先被頂到頂的人輸。
 """
 from __future__ import annotations
@@ -170,6 +170,16 @@ def draw_player(screen, p, left, fonts, name, tint):
     if p.last_event and p.event_age < 1.5:
         s = small.render(p.last_event, True, (255, 220, 90))
         screen.blit(s, s.get_rect(center=(bx + BOARD_W // 2, TOP + BOARD_H // 2 - 60)))
+    if p.glow < 1.6:  # 全清：綠光由亮漸隱
+        k = 1 - p.glow / 1.6
+        glow = pygame.Surface((BOARD_W + 60, BOARD_H + 60), pygame.SRCALPHA)
+        for i in range(30):
+            pygame.draw.rect(glow, (60, 255, 120, int(200 * k * (1 - i / 30) ** 2)),
+                             (i, i, BOARD_W + 60 - 2 * i, BOARD_H + 60 - 2 * i), 1, border_radius=14)
+        screen.blit(glow, (bx - 30, TOP - 30))
+        shade = pygame.Surface((BOARD_W, BOARD_H), pygame.SRCALPHA)
+        shade.fill((60, 255, 120, int(90 * k)))
+        screen.blit(shade, (bx, TOP))
     if not p.alive:
         shade = pygame.Surface((BOARD_W, BOARD_H), pygame.SRCALPHA)
         shade.fill((0, 0, 0, 150))
