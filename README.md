@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | [`snake/`](snake/) | 貪食蛇 | `python snake/snake.py` |
 | [`kaleidoscope/`](kaleidoscope/) | 萬花筒畫板 | `python kaleidoscope/kaleidoscope.py` |
+| [`tetris/`](tetris/) | 俄羅斯方塊對戰（雙人 / 對電腦） | `python tetris/tetris.py` |
 
 ## 安裝
 
