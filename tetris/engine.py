@@ -275,7 +275,7 @@ class Player:
             for _ in range(n):
                 if any(c is not None for c in self.grid[0]):
                     self.alive = False  # 被頂出畫面
-                    row = [GARBAGE] * COLS
+                row = [GARBAGE] * COLS
                 row[hole] = None
                 self.grid = self.grid[1:] + [row]
 
