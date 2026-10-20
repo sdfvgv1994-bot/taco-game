@@ -379,3 +379,22 @@ def test_speed_presets():
     assert (ui.DAS, ui.ARR) == ui.SPEEDS["快"]
     ui.set_speed("不存在")
     assert (ui.DAS, ui.ARR) == ui.SPEEDS["中"]
+
+
+def test_hold_key_setting():
+    ui = _tetris_ui()
+    import pygame
+    ui.set_hold("C / .")
+    assert ui.P1_KEYS["hold"] == pygame.K_c and ui.P2_KEYS["hold"] == pygame.K_PERIOD
+    ui.set_hold("Shift")
+    assert ui.P1_KEYS["hold"] == pygame.K_LSHIFT and ui.P2_KEYS["hold"] == pygame.K_RSHIFT
+    assert ui.hold_names("Shift") == ("左 Shift", "右 Shift")
+    ui.set_hold("C / .")
+
+
+def test_hold_defaults_to_c_not_shift(tmp_path):
+    ui = _tetris_ui()
+    s = ui.Settings(tmp_path / "settings.json")
+    assert s["hold"] == "C / ."      # 預設不用 Shift，避免切到中英文
+    s.toggle("hold")
+    assert s["hold"] == "Shift"

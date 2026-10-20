@@ -47,6 +47,8 @@ P1_KEYS = dict(left=pygame.K_a, right=pygame.K_d, down=pygame.K_s, cw=pygame.K_w
                drop=pygame.K_SPACE, hold=pygame.K_LSHIFT)
 P2_KEYS = dict(left=pygame.K_LEFT, right=pygame.K_RIGHT, down=pygame.K_DOWN, cw=pygame.K_UP,
                ccw=pygame.K_SLASH, drop=pygame.K_RETURN, hold=pygame.K_RSHIFT)
+# 暫存鍵：Shift 在注音輸入法會切換中英文，所以預設用 C（玩家 1）和 .（玩家 2），設定裡可以換回 Shift
+HOLD_KEYS = {"C / .": (pygame.K_c, pygame.K_PERIOD), "Shift": (pygame.K_LSHIFT, pygame.K_RSHIFT)}
 DAS, ARR = 0.16, 0.04  # 長按多久開始連續移動、之後每幾秒一格（設定畫面可以改）
 SPEEDS = {"慢": (0.22, 0.06), "中": (0.16, 0.04), "快": (0.10, 0.02)}  # 長按移動速度：(DAS, ARR)
 
@@ -61,6 +63,20 @@ def digit(key) -> int | None:
     return DIGIT_KEYS.get(key)
 
 
+HOLD_NAME = ["C / ."]  # 目前的暫存鍵設定（說明文字用）
+
+
+def set_hold(name: str):
+    """套用暫存鍵（C / . 或 Shift）。"""
+    HOLD_NAME[0] = name if name in HOLD_KEYS else "C / ."
+    P1_KEYS["hold"], P2_KEYS["hold"] = HOLD_KEYS[HOLD_NAME[0]]
+
+
+def hold_names(name: str) -> tuple[str, str]:
+    """說明文字用：玩家 1、玩家 2 的暫存鍵名稱。"""
+    return ("左 Shift", "右 Shift") if name == "Shift" else ("C", ".")
+
+
 def set_speed(name: str):
     """套用長按移動速度（慢 / 中 / 快）。"""
     global DAS, ARR
@@ -70,10 +86,10 @@ def set_speed(name: str):
 class Settings:
     """遊戲設定，存在 tetris/settings.json（不在 git 裡）。"""
 
-    DEFAULTS = {"sfx": True, "music": True, "ghost": True, "countdown": True, "speed": "中"}
+    DEFAULTS = {"sfx": True, "music": True, "ghost": True, "countdown": True, "speed": "中", "hold": "C / ."}
     # 設定畫面上的順序：(按鍵數字, 欄位, 名稱)
     ITEMS = [(1, "sfx", "音效"), (2, "music", "背景音樂"), (3, "ghost", "落點預覽"),
-             (4, "countdown", "開局倒數 3 秒"), (5, "speed", "長按移動速度")]
+             (4, "countdown", "開局倒數 3 秒"), (5, "speed", "長按移動速度"), (6, "hold", "暫存鍵")]
 
     def __init__(self, path: Path):
         self.path = path
@@ -87,14 +103,16 @@ class Settings:
             pass
         if self.data["speed"] not in SPEEDS:
             self.data["speed"] = "中"
+        if self.data["hold"] not in HOLD_KEYS:
+            self.data["hold"] = "C / ."
 
     def __getitem__(self, key):
         return self.data[key]
 
     def toggle(self, key: str):
         """開關類切換開 / 關；速度在 慢 → 中 → 快 之間輪流。存檔失敗也照常用。"""
-        if key == "speed":
-            names = list(SPEEDS)
+        if key in ("speed", "hold"):
+            names = list(SPEEDS if key == "speed" else HOLD_KEYS)
             self.data[key] = names[(names.index(self.data[key]) + 1) % len(names)]
         else:
             self.data[key] = not self.data[key]
@@ -105,7 +123,7 @@ class Settings:
 
     def label(self, key: str) -> str:
         v = self.data[key]
-        return v if key == "speed" else ("開" if v else "關")
+        return v if key in ("speed", "hold") else ("開" if v else "關")
 
 
 def load_font(size):
@@ -354,8 +372,9 @@ def draw_menu(screen, fonts, state, cfg=None):
         for i, t in enumerate(items):
             center_text(screen, t, small, 260 + i * 44)
         center_text(screen, "Esc / Backspace 返回", small, 260 + len(items) * 44 + 10, DIM)
-    lines = ["玩家 1：A D 移動　S 軟降　W 順轉　Q 逆轉　空白 硬降　左 Shift 暫存",
-             "玩家 2：← → 移動　↓ 軟降　↑ 順轉　/ 逆轉　Enter 硬降　右 Shift 暫存",
+    h1, h2 = hold_names(HOLD_NAME[0])
+    lines = [f"玩家 1：A D 移動　S 軟降　W 順轉　Q 逆轉　空白 硬降　{h1} 暫存",
+             f"玩家 2：← → 移動　↓ 軟降　↑ 順轉　/ 逆轉　Enter 硬降　{h2} 暫存",
              "對電腦時兩組按鍵都能用　P 或 Esc 暫停　Tab / 滑鼠點小板子：換攻擊目標"]
     for i, t in enumerate(lines):
         center_text(screen, t, small, HEIGHT - 90 + i * 26, DIM)
@@ -431,6 +450,7 @@ def main():
     records = Records(Path(__file__).parent / "records.json")
     settings = Settings(Path(__file__).parent / "settings.json")
     set_speed(settings["speed"])
+    set_hold(settings["hold"])
     audio.apply(settings["sfx"], settings["music"])
 
     state, cfg, diff = "menu", None, None  # state: menu / diff / settings / play
@@ -565,6 +585,7 @@ def main():
                     if item:
                         settings.toggle(item)
                         set_speed(settings["speed"])
+                        set_hold(settings["hold"])
                         audio.apply(settings["sfx"], settings["music"])
             elif state == "diff":
                 names_d = list(DIFFICULTY)
