@@ -81,6 +81,7 @@ def build_sfx() -> dict[str, list[float]]:
         "warn": concat([tone(110, 0.09, 0.35), tone(0, 0.05, 0), tone(110, 0.09, 0.35)]),
         "dead": tone(440, 0.8, 0.4, "square", f1=70),
         "win": arpeggio(["C5", "E5", "G5", "C6", "G5", "C6", "E6"], 0.1, 0.5, 0.35),
+        "ko": arpeggio(["G5", "E5", "C5", "G4", "C4"], 0.05, 0.2, 0.4, "square"),
         "countdown": tone(660, 0.1, 0.3, "triangle"),
         "go": tone(990, 0.25, 0.3, "triangle"),
     }

@@ -7,3 +7,4 @@ kaleidoscope/drawings/
 *.log
 .DS_Store
 .pytest_cache/
+tetris/records.json

@@ -5,6 +5,8 @@ import random
 
 COLS, ROWS = 10, 20
 LOCK_DELAY = 0.5
+LINES_PER_LEVEL = 10
+MAX_LEVEL = 15
 MAX_LOCK_RESETS = 15
 SOFT_INTERVAL = 0.03
 MAX_GARBAGE_PER_LOCK = 8
@@ -60,6 +62,11 @@ class Player:
         self.pending: list[int] = []  # 對手送來、還沒落下的垃圾行
         self.outbox = 0               # 這一步要送給對手的垃圾行
         self.sent = 0
+        self.ko = 0                   # 擊倒對手的次數（限時對戰用）
+        self.deaths = 0
+        self.last_attacker: int | None = None  # 最後一個送垃圾給我的人，被擊倒時算他的 KO
+        self.target: int | None = None         # 我要攻擊誰（Match 裡的玩家編號）
+        self.done = False             # 競速 / 馬拉松已完成，停止操作
         self.soft = False
         self.last_event = ""          # 畫面上顯示的提示，例如「四行消除」
         self.event_age = 0.0
@@ -113,8 +120,29 @@ class Player:
             y += 1
         return y
 
+    @property
+    def active(self) -> bool:
+        return self.alive and not self.done
+
+    @property
+    def level(self) -> int:
+        return self.lines // LINES_PER_LEVEL + 1
+
     def gravity(self) -> float:
-        return max(0.06, 0.9 * 0.85 ** (self.lines // 10))
+        return max(0.05, 0.9 * 0.82 ** (self.level - 1))
+
+    def height(self) -> int:
+        top = next((y for y in range(ROWS) if any(c is not None for c in self.grid[y])), ROWS)
+        return ROWS - top
+
+    def revive(self):
+        """被擊倒後清空場地重新開始（限時對戰用）。"""
+        self.grid = [[None] * COLS for _ in range(ROWS)]
+        self.pending = []
+        self.combo, self.b2b, self.can_hold = -1, False, True
+        self.last_attacker = None
+        self.alive = True
+        self.spawn()
 
     # ---- 操作（回傳是否成功）----
     def _moved(self):
@@ -126,7 +154,7 @@ class Player:
             self.lock_timer = 0.0
 
     def move(self, dx: int) -> bool:
-        if not self.alive or not self.valid(self.kind, self.rot, self.x + dx, self.y):
+        if not self.active or not self.valid(self.kind, self.rot, self.x + dx, self.y):
             return False
         self.x += dx
         self.last_rotate = False
@@ -135,7 +163,7 @@ class Player:
         return True
 
     def rotate(self, d: int = 1) -> bool:
-        if not self.alive or self.kind == "O":
+        if not self.active or self.kind == "O":
             return False
         rot = (self.rot + d) % 4
         for kx, ky in KICKS:
@@ -148,7 +176,7 @@ class Player:
         return False
 
     def hold(self) -> bool:
-        if not self.alive or not self.can_hold:
+        if not self.active or not self.can_hold:
             return False
         old, self.hold_kind = self.hold_kind, self.kind
         self.spawn(old)
@@ -157,7 +185,7 @@ class Player:
         return True
 
     def hard_drop(self):
-        if not self.alive:
+        if not self.active:
             return
         if self.ghost_y() != self.y:
             self.last_rotate = False
@@ -169,7 +197,7 @@ class Player:
     def update(self, dt: float):
         self.event_age += dt
         self.glow += dt
-        if not self.alive:
+        if not self.active:
             return
         if self.on_ground():
             self.lock_timer += dt
@@ -258,9 +286,10 @@ class Player:
             self.lines += n
         return n
 
-    def receive(self, lines: int):
+    def receive(self, lines: int, src: int | None = None):
         if lines > 0:
             self.pending.append(lines)
+            self.last_attacker = src
             self.sfx.append("warn")
 
     def _apply_garbage(self):
@@ -285,32 +314,129 @@ class Player:
 
 
 class Match:
-    """兩個玩家的對戰：一邊送出的垃圾行會變成另一邊的 pending。"""
+    """多個玩家的比賽。mode：
+    survival  先被頂到頂的人輸（兩人）
+    battle    限時（或 KO 數）對戰，被頂到頂 = 對手 +1 KO，清空重來；依 KO > 送出行數 > 行高 排名
+    sprint    先消完 SPRINT_LINES 行的人贏，不互相攻擊
+    marathon  單人，消完 MAX_LEVEL 關（每關 LINES_PER_LEVEL 行）過關，頂到頂就結束
+    """
 
-    def __init__(self, seed: int | None = None):
+    SPRINT_LINES = 40
+
+    def __init__(self, seed: int | None = None, n: int = 2, mode: str = "survival",
+                 time_limit: float | None = None, ko_limit: int | None = None):
         seed = random.randrange(1 << 30) if seed is None else seed
-        # 兩邊用同樣的方塊順序，比較公平
-        self.players = [Player(random.Random(seed)), Player(random.Random(seed))]
-        self.winner: int | None = None  # 0 / 1，平手為 -1
+        # 大家用同樣的方塊順序，比較公平
+        self.players = [Player(random.Random(seed)) for _ in range(n)]
+        for i, p in enumerate(self.players):
+            p.target = (i + 1) % n if n > 1 else None
+        self.mode, self.time_limit, self.ko_limit = mode, time_limit, ko_limit
+        self.elapsed = 0.0
+        self.finish: list[float | None] = [None] * n  # 競速 / 馬拉松的完成時間
+        self.winner: int | None = None  # 勝者編號，平手為 -1
+        self.success: bool | None = None  # 單人模式有沒有完成
+        self.ranks: list[int] = []
         self.over = False
+
+    @property
+    def goal_lines(self) -> int:
+        return self.SPRINT_LINES if self.mode == "sprint" else MAX_LEVEL * LINES_PER_LEVEL
+
+    @property
+    def time_left(self) -> float | None:
+        return None if not self.time_limit else max(0.0, self.time_limit - self.elapsed)
 
     def update(self, dt: float):
         if self.over:
             return
-        a, b = self.players
-        a.update(dt)
-        b.update(dt)
+        self.elapsed += dt
+        for p in self.players:
+            p.update(dt)
         self.transfer()
 
+    # ---- 目標 ----
+    def target_of(self, i: int) -> int | None:
+        t = self.players[i].target
+        if t is not None and t != i and self.players[t].alive:
+            return t
+        others = [j for j, p in enumerate(self.players) if j != i and p.alive]
+        return others[0] if others else None
+
+    def set_target(self, i: int, j: int):
+        if j != i and 0 <= j < len(self.players):
+            self.players[i].target = j
+
+    def cycle_target(self, i: int):
+        n = len(self.players)
+        t = self.players[i].target if self.players[i].target is not None else i
+        self.players[i].target = (t + 1) % n if (t + 1) % n != i else (t + 2) % n
+
+    # ---- 結算 ----
     def transfer(self):
-        a, b = self.players
-        out_a, out_b = a.take_outbox(), b.take_outbox()
-        b.receive(out_a)
-        a.receive(out_b)
-        if not a.alive or not b.alive:
-            self.over = True
-            self.winner = -1 if not a.alive and not b.alive else (1 if not a.alive else 0)
+        if self.over:
+            return
+        for i, p in enumerate(self.players):
+            out = p.take_outbox()
+            if out and self.mode in ("survival", "battle"):
+                t = self.target_of(i)
+                if t is not None:
+                    self.players[t].receive(out, i)
+        getattr(self, "_check_" + self.mode)()
 
     def hard_drop(self, i: int):
         self.players[i].hard_drop()
         self.transfer()
+
+    def _check_survival(self):
+        alive = [i for i, p in enumerate(self.players) if p.alive]
+        if len(alive) < len(self.players):
+            self.over = True
+            self.winner = alive[0] if len(alive) == 1 else -1
+            self.ranks = alive + [i for i in range(len(self.players)) if i not in alive]
+
+    def _check_battle(self):
+        for i, p in enumerate(self.players):
+            if p.alive:
+                continue
+            p.deaths += 1
+            killer = p.last_attacker
+            if killer is not None and killer != i:
+                a = self.players[killer]
+                a.ko += 1
+                a._event("KO！")
+                a.sfx.append("ko")
+            p._event("被擊倒")
+            p.revive()
+        timeout = self.time_limit is not None and self.elapsed >= self.time_limit
+        ko_done = self.ko_limit is not None and max(p.ko for p in self.players) >= self.ko_limit
+        if timeout or ko_done:
+            self.over = True
+            self.ranks = sorted(range(len(self.players)), key=self._rank_key, reverse=True)
+            tie = len(self.ranks) > 1 and self._rank_key(self.ranks[0]) == self._rank_key(self.ranks[1])
+            self.winner = -1 if tie else self.ranks[0]
+
+    def _rank_key(self, i: int):
+        p = self.players[i]
+        return (p.ko, p.sent, -p.height())
+
+    def _check_race(self):
+        for i, p in enumerate(self.players):
+            if self.finish[i] is None and p.alive and p.lines >= self.goal_lines:
+                self.finish[i] = self.elapsed
+                p.done = True
+                p._event("完成！")
+        solo = len(self.players) == 1
+        running = [i for i, p in enumerate(self.players) if p.active]
+        if solo:
+            if not self.players[0].alive or self.finish[0] is not None:
+                self.over, self.success = True, self.finish[0] is not None
+                self.winner = 0 if self.success else None
+        elif not self.players[0].alive or not running:
+            self.over = True
+            self.ranks = sorted(range(len(self.players)),
+                                key=lambda i: (self.finish[i] is None, self.finish[i] or 0))
+            if self.finish[self.ranks[0]] is not None:
+                self.winner = self.ranks[0]
+
+    _check_sprint = _check_race
+    _check_marathon = _check_race

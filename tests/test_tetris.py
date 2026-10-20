@@ -207,3 +207,125 @@ def test_synthesised_sounds_are_valid_and_audio_can_be_disabled():
     a.start_music()
     a.stop_music()
     assert not a.ok and a.toggle_mute() is True
+
+
+# ---- 多人 / 模式 ----
+def test_battle_ko_revives_and_credits_attacker():
+    m = Match(1, n=3, mode="battle", time_limit=120)
+    a, b, c = m.players
+    b.receive(2, src=0)
+    b.alive = False
+    m.transfer()
+    assert a.ko == 1 and b.deaths == 1 and b.alive and b.pending == []
+    assert all(c is None for row in b.grid for c in row)
+
+
+def test_battle_without_attacker_gives_no_ko():
+    m = Match(1, n=2, mode="battle", time_limit=120)
+    m.players[0].alive = False
+    m.transfer()
+    assert m.players[1].ko == 0 and m.players[0].alive
+
+
+def test_battle_timeout_ranks_by_ko_then_sent_then_height():
+    m = Match(1, n=3, mode="battle", time_limit=10)
+    m.players[0].ko, m.players[1].ko, m.players[2].ko = 1, 1, 0
+    m.players[0].sent, m.players[1].sent = 3, 5
+    m.update(10.0)
+    assert m.over and m.ranks == [1, 0, 2] and m.winner == 1
+
+
+def test_battle_exact_tie_is_a_draw():
+    m = Match(1, n=2, mode="battle", time_limit=1)
+    m.update(1.0)
+    assert m.over and m.winner == -1
+
+
+def test_ko_limit_ends_match_early():
+    m = Match(1, n=2, mode="battle", time_limit=120, ko_limit=2)
+    m.players[0].ko = 2
+    m.transfer()
+    assert m.over and m.winner == 0
+
+
+def test_garbage_goes_to_chosen_target():
+    m = Match(1, n=4, mode="battle", time_limit=120)
+    m.set_target(0, 3)
+    m.players[0].outbox = 4
+    m.transfer()
+    assert m.players[3].pending == [4] and m.players[3].last_attacker == 0
+    assert m.players[1].pending == [] and m.players[2].pending == []
+
+
+def test_cycle_target_skips_self():
+    m = Match(1, n=3, mode="battle")
+    seen = set()
+    for _ in range(6):
+        m.cycle_target(1)
+        seen.add(m.players[1].target)
+    assert seen == {0, 2}
+
+
+def test_sprint_finishes_at_forty_lines():
+    m = Match(1, n=1, mode="sprint")
+    p = m.players[0]
+    p.lines = 40
+    m.elapsed = 55.5
+    m.transfer()
+    assert m.over and m.success and m.finish[0] == 55.5 and p.done
+    assert not p.move(1)  # 完成後不能再操作
+
+
+def test_sprint_race_ranks_by_finish_time():
+    m = Match(1, n=3, mode="sprint")
+    m.elapsed = 30
+    m.players[2].lines = 40
+    m.transfer()
+    assert not m.over
+    m.elapsed = 45
+    m.players[1].lines = 40
+    m.transfer()
+    m.players[0].alive = False
+    m.transfer()
+    assert m.over and m.ranks[:2] == [2, 1] and m.winner == 2
+
+
+def test_marathon_levels_and_goal():
+    m = Match(1, n=1, mode="marathon")
+    p = m.players[0]
+    assert p.level == 1 and m.goal_lines == 150
+    p.lines = 25
+    assert p.level == 3 and p.gravity() < Player(random.Random(1)).gravity()
+    p.lines = 150
+    m.transfer()
+    assert m.over and m.success
+
+
+def test_marathon_game_over_when_dead():
+    m = Match(1, n=1, mode="marathon")
+    m.players[0].alive = False
+    m.transfer()
+    assert m.over and m.success is False
+
+
+def test_ai_targets_alive_opponents_only():
+    m = Match(1, n=4, mode="battle")
+    m.players[2].alive = False
+    ai = AI(0.1)
+    for _ in range(40):
+        ai.retarget_timer = 0
+        ai.choose_target(0.1, m, 1)
+        assert m.players[1].target in (0, 3)
+
+
+def test_six_player_battle_with_ais_runs():
+    m = Match(2, n=6, mode="battle", time_limit=30, ko_limit=10)
+    ais = {i: AI(0.0) for i in range(6)}
+    for _ in range(700):
+        for i, a in ais.items():
+            a.update(0.05, m.players[i])
+            a.choose_target(0.05, m, i)
+        m.update(0.05)
+        if m.over:
+            break
+    assert m.over and sorted(m.ranks) == list(range(6))
