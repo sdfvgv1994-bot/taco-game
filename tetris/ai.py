@@ -1,6 +1,8 @@
 """電腦對手：列舉所有落點，用簡單的評分挑最好的，再一步一步操作過去。"""
 from __future__ import annotations
 
+import random
+
 from engine import COLS, ROWS, piece_cells
 
 DIFFICULTY = {  # 名稱: 每次動作的間隔（秒）
@@ -55,6 +57,17 @@ class AI:
         self.timer = 0.0
         self.target: tuple[int, int] | None = None
         self.piece_no = -1
+        self.retarget_timer = 0.0
+
+    def choose_target(self, dt: float, match, index: int):
+        """多人對戰時，每隔幾秒隨機換一個還活著的目標，三成機率盯著玩家 1。"""
+        self.retarget_timer -= dt
+        if self.retarget_timer > 0:
+            return
+        self.retarget_timer = random.uniform(2.0, 5.0)
+        others = [j for j, p in enumerate(match.players) if j != index and p.alive]
+        if others:
+            match.set_target(index, 0 if 0 in others and random.random() < 0.3 else random.choice(others))
 
     def update(self, dt: float, player):
         if not player.alive:
