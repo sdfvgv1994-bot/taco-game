@@ -16,7 +16,9 @@
 - **線上對戰**：一個人「建立房間」拿到 4 位數房號，朋友打開同一個網址、輸入房號就能連線對打。
   連線用 [PeerJS](https://peerjs.com/)，兩台裝置直接互連，不經過我們的伺服器。
   少數公司或學校的網路會擋這種直連，連不上時換手機網路試試。
-- 程式都在 [`web/index.html`](web/index.html) 這一個檔案；`web/music/` 是背景音樂（來源標在遊戲的設定畫面）
+- 程式在 [`web/`](web/)：`index.html` 是畫面骨架、`style.css` 是樣式，`js/` 依載入順序分成
+  `engine`（規則）、`ai`（電腦對手）、`settings`（設定與按鍵）、`audio`（聲音）、`draw`（畫面）、`state`（遊戲狀態）、
+  `panels`（選單與結算）、`input`（鍵盤與觸控）、`net`（線上對戰）、`main`（主迴圈）；`web/music/` 是背景音樂（來源標在遊戲的設定畫面）
 - main 分支的 `web/` 有改動時，GitHub Actions「網頁版上線」會自動更新網站
 
 Windows 的 `.bat` 啟動檔出錯時，視窗會停住顯示錯誤訊息，也會記在 `.cache\` 裡的 `*_log.txt`。
