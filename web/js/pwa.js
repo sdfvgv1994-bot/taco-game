@@ -10,7 +10,21 @@ const PWA = (() => {
   const refresh = () => { if (state === "menu") showMenu(); };
   addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); prompt = e; refresh(); });
   addEventListener("appinstalled", () => { prompt = null; refresh(); });
+  // 有新版本：開著的時候每 10 分鐘、切回 App 時各查一次 version.json，不一樣就在主選單上方提示
+  let latest = null;
+  async function check() {
+    if (APP_VERSION === "dev") return;            // 本機開的版本不檢查
+    try {
+      const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
+      const j = r.ok ? await r.json() : null;
+      if (j && j.v && j.v !== APP_VERSION && latest !== j.v) { latest = j.v; refresh(); }
+    } catch (e) { /* 沒網路：下次再查 */ }
+  }
+  addEventListener("load", () => setTimeout(check, 3000));
+  setInterval(check, 10 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
   return {
+    hasUpdate: () => latest !== null,
     canInstall: () => !standalone() && (prompt !== null || ios),
     async install() {
       if (prompt) {

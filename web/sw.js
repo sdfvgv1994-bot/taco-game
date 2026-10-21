@@ -3,7 +3,7 @@
 // - 只處理這個網站自己的檔案；PeerJS、字型等外部網址直接連線，不經過這裡
 // - 音樂檔（mp3，約 12MB）不存，邊播邊下載；沒網路時改用程式合成的音樂風格
 // - 存的時候不看 ?v= 版本號，每個檔案只留最新的一份
-const CACHE = "taco-blocks-v1";
+const CACHE = "taco-blocks-v2";
 const CORE = ["./", "./manifest.json", "./app/icon-192.png"];
 
 self.addEventListener("install", (e) => {
@@ -21,8 +21,11 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== location.origin) return;
   if (url.pathname.endsWith(".mp3") || req.headers.has("range")) return;
-  const key = req.mode === "navigate" ? new URL("./", self.registration.scope).href : url.origin + url.pathname;
-  e.respondWith(fetch(req).then((res) => {
+  const nav = req.mode === "navigate";
+  const key = nav ? new URL("./", self.registration.scope).href : url.origin + url.pathname;
+  // 網頁本身和 version.json 每次都跟伺服器確認（不用瀏覽器存了 10 分鐘的舊版），按「更新」才真的拿到新版
+  const fresh = nav || url.pathname.endsWith("version.json");
+  e.respondWith(fetch(fresh ? new Request(req.url, { cache: "no-cache", credentials: "same-origin" }) : req).then((res) => {
     if (res.ok && res.status === 200) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(key, copy)); }
     return res;
   }).catch(() => caches.match(key).then((hit) => hit || Promise.reject(new Error("offline")))));

@@ -3,7 +3,7 @@
 "use strict";
 /* ================= 線上對戰：用 room 的「presence」互傳自己的狀態 =================
    每個人只模擬自己的板子，把畫面（板子、分數、送出的總攻擊行數…）放在自己的 presence；
-   對手的「送出總行數」變多了，多出來的就是打過來的垃圾行。房主決定模式、方塊順序（seed）和開始時間。 */
+   對手的「送出總行數」變多了，多出來的就是打過來的垃圾行。房主決定模式和開始時間；方塊順序兩邊各自隨機（presence 裡的 seed 只留給舊版用）。 */
 const NET={api:null,room:null,code:null,host:false,opp:null,round:0,seen:0,sent:0,startAt:0,modeKey:1,lastPub:0,evn:0,unsub:null,
   nick:(()=>{try{return localStorage.getItem("taco-blocks-nick")||""}catch(e){return""}})()};
 
@@ -80,7 +80,8 @@ function netGuestCheck(){const g=NET.opp&&NET.opp.presence.game;if(!g||!(g.round
   if(Date.now()-g.startAt>8000)return;   // 錯過太久的局就不追了，等下一局
   NET.round=g.round;NET.modeKey=g.mode;netBegin(g)}
 function netBegin(g){const m=MODES.find(x=>x.key===g.mode);cfg=m.cfg;diff="net";state="play";paused=false;scored=false;note="";
-  match=new Match(2,cfg.kind,cfg.time||null,g.seed);match.net=true;match.startAt=g.startAt;ais={};
+  match=new Match(2,cfg.kind,cfg.time||null);match.net=true;   // 不帶 seed：自己的方塊順序自己抽
+  match.startAt=g.startAt;ais={};
   const r=match.players[1];r.remote=true;r.queue=[];
   names=[myNick(),oppName()];NET.seen=0;NET.sent=0;NET.evn=0;NET.lastEv="";NET.pz={round:NET.round,seq:0,on:false,t:0,by:""};NET.pzKey="";NET.pausedAt=0;NET.resuming=false;
   countdown=Math.max(.5,(g.startAt-Date.now())/1000);lastBeep=0;audio.stopMusic();audio.paused=false;for(const k in held)delete held[k];hidePanel()}
@@ -139,5 +140,5 @@ function netPauseCheck(){const m=match;if(!m||!m.net||m.over||m.ending)return;
     showNetPause(c===NET.pz?"你":c.by,c!==NET.pz)}
   else if(paused){const resumeAt=c.t+3000;m.startAt+=resumeAt-NET.pausedAt;
     paused=false;NET.resuming=true;countdown=Math.max(.3,(resumeAt-Date.now())/1000);lastBeep=0;hidePanel()}}
-function showNetPause(by,guard){showPanel(`<div class="card"><div class="big">PAUSE</div><p style="text-align:center">${esc(by)} 暫停了，兩邊都停住</p>
+function showNetPause(by,guard){showPanel(`<div class="card"><div class="big">PAUSE</div><p style="text-align:center">${by==="你"?"你":esc(by)+" "}暫停了，兩邊都停住</p>
   <ul class="menu">${kbtn("Esc","繼續","兩邊一起倒數 3 秒，也可以按 P","resume")}${kbtn("⌫","離開房間","會算你棄權","net-leave")}</ul></div>`,guard)}
