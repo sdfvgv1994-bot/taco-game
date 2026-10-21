@@ -47,6 +47,7 @@ const audio={ctx:null,muted:false,timer:null,step:0,paused:false,wantMusic:false
   /* 大廳音樂（主選單、設定、線上房間）：Korobeiniki（俄羅斯民謠，公有領域）的 Lo-fi 爵士改編，自己編的伴奏。
      88 拍、反拍搖擺；每半小節一個爵士和弦（Am9、E7♭9、Dm9、Cmaj9），電鋼琴和弦、木琴／鐘聲旋律、
      柔和大鼓與邊擊、沙鈴、黑膠雜音；第二輪旋律多一層低八度的電鋼琴 */
+  lobbyBpm:88,lobbyBusy:false,   // 大廳音樂的速度；Busy＝鼓和沙鈴打兩倍密
   lobbyChords:(()=>{const Am=["A",[0,3,7,10,14]],E7=["E",[0,4,7,10,13]],Dm=["D",[0,3,7,10,14]],C=["C",[0,4,7,11,14]];
     return [Am,E7, Am,Am, E7,E7, Am,Am, Dm,Dm, C,Am, E7,E7, Am,Am]})(),   // 每半小節（8 步）一個
   softKick(t){const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.frequency.setValueAtTime(110,t);o.frequency.exponentialRampToValueAtTime(45,t+.1);
@@ -55,9 +56,11 @@ const audio={ctx:null,muted:false,timer:null,step:0,paused:false,wantMusic:false
   ep(f,t,dur,vol){this.synth(f,t,dur,vol,"sine",2200,this.duck);this.synth(f*2,t,dur*.4,vol*.25,"triangle",3500,this.duck,4)},   // 電鋼琴：正弦波＋一點泛音
   lobbyStep(st,t,u){const half=Math.floor(st/8)%16,b=st%16,h=st%8,[cn,iv]=this.lobbyChords[half],r=this.root(cn,2),sw=b%4===2?u*.33:0,T=t+sw;
     // 鼓：大鼓在 1 和 3 拍後半（Lo-fi 常見的「咚—咚」），邊擊在 2、4 拍；沙鈴每個八分音符，反拍往後拖
-    if(b===0||b===10)this.softKick(T);
+    if(b===0||b===10||(this.lobbyBusy&&(b===7||b===14)))this.softKick(T);
     if(b===4||b===12)this.hiss(t,.07,.1,2400,true);
-    if(b%2===0)this.hiss(T,.035,b%4===0?.05:.035,7000);
+    if(this.lobbyBusy&&(b===15||b===9))this.hiss(t,.04,.04,2400,true);                      // 鬼音小鼓
+    if(this.lobbyBusy)this.hiss(T,.03,b%4===0?.05:b%2===0?.035:.022,7500);                 // 十六分音符沙鈴
+    else if(b%2===0)this.hiss(T,.035,b%4===0?.05:.035,7000);
     if(Math.random()<.12)this.hiss(t+Math.random()*u,.012,.025,3000,true);              // 黑膠雜音
     // 貝斯：每半小節根音＋五度
     if(h===0)this.synth(r,t,u*5,.32,"triangle",380,this.duck);
@@ -76,7 +79,7 @@ const audio={ctx:null,muted:false,timer:null,step:0,paused:false,wantMusic:false
     this.el=el;el.currentTime=0;this.nowPlaying=name;
     this.timer=setInterval(()=>{const stop=this.paused||this.muted||!settings.music||!this.wantMusic;if(stop&&!el.paused)el.pause();else if(!stop&&el.paused)el.play().catch(()=>{})},150)},
   startMusic(lobby){this.wantMusic=true;this.kind=lobby?"lobby":"game";if(!this.ctx||this.timer||!settings.music)return;
-    if(lobby){this.nowPlaying=null;if(!this.seq)this.build();const u=60/88/4;this.nextT=this.ctx.currentTime+.08;this.pos=0;
+    if(lobby){this.nowPlaying=null;if(!this.seq)this.build();const u=60/this.lobbyBpm/4;this.nextT=this.ctx.currentTime+.08;this.pos=0;
       this.timer=setInterval(()=>{if(!this.wantMusic)return;const now=this.ctx.currentTime;
         if(this.muted||!settings.music){this.nextT=now+.08;return}
         while(this.nextT<now+.12){this.lobbyStep(this.pos,this.nextT,u);this.pos++;this.nextT+=u}},25);return}
