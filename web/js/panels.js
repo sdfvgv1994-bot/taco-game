@@ -3,7 +3,9 @@
 "use strict";
 /* ================= 面板（選單、設定、按鍵、暫停、結算） ================= */
 function hidePanel(){panel.hidden=true;panel.innerHTML="";document.body.classList.remove("menu-open")}
-function showPanel(html){panel.innerHTML=html;panel.hidden=false;document.body.classList.add("menu-open");const b=panel.querySelector("button");if(b)b.focus({preventScroll:true})}
+/* 自己跳出來的面板（結算、對手按的暫停）：剛出現的一下子不接受點擊，免得還在連按觸控鍵時誤按到「離開房間」 */
+let panelGuard=0;
+function showPanel(html,guard){panel.innerHTML=html;panelGuard=guard?performance.now()+800:0;panel.hidden=false;document.body.classList.add("menu-open");const b=panel.querySelector("button");if(b)b.focus({preventScroll:true})}
 const kbtn=(k,t,sub,act,val)=>`<li><button type="button" class="${val!=null?"setting":""}" data-act="${act}"><span class="k">${k}</span><span class="t">${t}${sub?`<small>${sub}</small>`:""}</span>${val!=null?`<span class="val">${val}</span>`:""}</button></li>`;
 const keyLine=i=>{const m=keys[i];return`${keyName(m.left)} ${keyName(m.right)} 移動　${keyName(m.down)} 軟降　${keyName(m.cw)} 順轉　${keyName(m.ccw)} 逆轉　${keyName(m.drop)} 硬降　${keyName(m.hold)} 暫存`};
 function showMenu(){state="menu";match=null;paused=false;audio.stopMusic();
@@ -72,9 +74,9 @@ function showResult(){const m=match,P=m.players,two=P.length===2;let head;
       連擊每次再加 50 × 連擊數 × 等級；連續四行或連續 T 轉 × 1.5；全清再加 3000 × 等級；軟降每格 1 分、硬降每格 2 分。
       只有「分數對戰」用分數判勝負，其他模式分數只是參考。</details>
     ${extra.map(l=>`<p style="text-align:center">${l}</p>`).join("")}
-    <ul class="menu">${m.net?(NET.host?kbtn("R","再來一局（同模式）","對手會一起開始","restart")+kbtn("M","換模式","回房間選模式","net-room"):`<li><p class="hint">等房主開下一局…</p></li>`)+kbtn("⌫","離開房間","","net-leave"):kbtn("R","再來一局","空白鍵 / Enter 也可以","restart")+kbtn("⌫","回主選單","Esc / Backspace","menu")}</ul></div>`)}
+    <ul class="menu">${m.net?(NET.host?kbtn("R","再來一局（同模式）","對手會一起開始","restart")+kbtn("M","換模式","回房間選模式","net-room"):`<li><p class="hint">等房主開下一局…</p></li>`)+kbtn("⌫","離開房間","","net-leave"):kbtn("R","再來一局","空白鍵 / Enter 也可以","restart")+kbtn("⌫","回主選單","Esc / Backspace","menu")}</ul></div>`,true)}
 
-panel.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;audio.init();
+panel.addEventListener("click",e=>{const b=e.target.closest("button");if(!b||performance.now()<panelGuard)return;audio.init();
   if(b.dataset.key){const [i,a]=b.dataset.key.split(":");waitKey=[+i,a];showKeys();return}
   if(b.dataset.act)handle(b.dataset.act)});
 function handle(a){

@@ -136,8 +136,8 @@ function netPauseCheck(){const m=match;if(!m||!m.net||m.over||m.ending)return;
   const c=list.reduce((a,b)=>b.t>a.t||(b.t===a.t&&b===hostPz)?b:a);
   const key=`${c.on}:${c.t}`;if(key===NET.pzKey)return;NET.pzKey=key;
   if(c.on){if(!paused){paused=true;audio.paused=true;NET.pausedAt=c.t;for(const k in held)delete held[k];m.players[0].soft=false}
-    showNetPause(c===NET.pz?"你":c.by)}
+    showNetPause(c===NET.pz?"你":c.by,c!==NET.pz)}
   else if(paused){const resumeAt=c.t+3000;m.startAt+=resumeAt-NET.pausedAt;
     paused=false;NET.resuming=true;countdown=Math.max(.3,(resumeAt-Date.now())/1000);lastBeep=0;hidePanel()}}
-function showNetPause(by){showPanel(`<div class="card"><div class="big">PAUSE</div><p style="text-align:center">${esc(by)} 暫停了，兩邊都停住</p>
-  <ul class="menu">${kbtn("Esc","繼續","兩邊一起倒數 3 秒，也可以按 P","resume")}${kbtn("⌫","離開房間","會算你棄權","net-leave")}</ul></div>`)}
+function showNetPause(by,guard){showPanel(`<div class="card"><div class="big">PAUSE</div><p style="text-align:center">${esc(by)} 暫停了，兩邊都停住</p>
+  <ul class="menu">${kbtn("Esc","繼續","兩邊一起倒數 3 秒，也可以按 P","resume")}${kbtn("⌫","離開房間","會算你棄權","net-leave")}</ul></div>`,guard)}

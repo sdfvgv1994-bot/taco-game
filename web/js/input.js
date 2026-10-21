@@ -13,7 +13,7 @@ window.addEventListener("keydown",e=>{audio.init();const c=e.code,d=digitOf(c);
   if(state==="settings"){if(c==="Escape"||c==="Backspace")showMenu();else if(d>=1&&d<=ITEMS.length)handle("set"+ITEMS[d-1][0]);else if(d===ITEMS.length+1)showKeys();return}
   if(state==="keys"){if(c==="Escape"||c==="Backspace")showSettings();return}
   if(state!=="play")return;
-  if(match.over){if(["Space","Enter","NumpadEnter","KeyR"].includes(c)){if(match.net){if(NET.host)netHostStart(NET.modeKey)}else start(cfg,diff)}else if(c==="Escape"||c==="Backspace")showMenu();return}
+  if(match.over){if(["Space","Enter","NumpadEnter","KeyR"].includes(c)){if(match.net){if(NET.host)netHostStart(NET.modeKey)}else start(cfg,diff)}else if(c==="Escape"||c==="Backspace"){if(match.net)netLeave();showMenu()}return}
   if(c==="Escape"||c==="KeyP"){setPause(!paused);return}
   if(paused&&match.net){if(c==="Backspace"){netLeave();showMenu()}return}   // 線上暫停中：只能繼續（Esc / P）或離開房間
   if(paused){if(c==="KeyR")start(cfg,diff);else if(c==="Backspace"){paused=false;showMenu()}return}
