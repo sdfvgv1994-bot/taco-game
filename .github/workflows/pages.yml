@@ -25,6 +25,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # 網址加上版本號（?v=提交代號）：GitHub Pages 讓瀏覽器把檔案存 10 分鐘，
+      # 沒有版本號的話，剛更新完有些瀏覽器（例如 Edge）還會用舊的樣式和程式
+      - name: 加上版本號
+        run: |
+          v="${GITHUB_SHA::7}"
+          sed -i -E "s#(href|src)=\"(style\.css|js/[a-z_]+\.js)\"#\1=\"\2?v=$v\"#g" web/index.html
+          grep -c "?v=$v" web/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web
