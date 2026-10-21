@@ -38,6 +38,6 @@ def test_installable_app_files():
 def test_version_is_filled_in_on_deploy():
     """更新提示靠 app-version：repo 裡是 dev，部署時換成提交代號並寫出 version.json。"""
     html = (WEB / "index.html").read_text(encoding="utf-8")
-    assert '<meta name="app-version" content="dev">' in html
+    assert '<meta name="app-version" content="dev">' in html and '<meta name="app-built" content="">' in html
     flow = (WEB.parent / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
-    assert "app-version" in flow and "version.json" in flow
+    assert "app-version" in flow and "version.json" in flow and "app-built" in flow
