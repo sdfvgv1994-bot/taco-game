@@ -45,7 +45,7 @@ if(window.Peer)NET.api=peerApi;
 (async()=>{if(NET.api)return;try{if(window.claude&&claude.use)NET.api=await claude.use("room")}catch(e){NET.api=null}if(state==="online")showOnline()})();
 const esc=t=>String(t??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const oppName=()=>NET.opp?String(NET.opp.presence.nick||"對手").slice(0,12):"對手";
-function showOnline(msg=""){state="online";
+function showOnline(msg=""){state="online";audio.lobbyMusic();
   if(!NET.api){showPanel(`<div class="card"><h2>線上對戰</h2><p>連線元件載入不了，請確認有網路後重新整理頁面再試一次。</p><div class="row-btns"><button type="button" data-act="menu">← 返回主選單</button></div></div>`);return}
   showPanel(`<div class="card"><h2>線上對戰</h2><p>你建立房間會拿到一組房號，朋友在他的手機或電腦打開這個遊戲，輸入同一組房號就能對打。</p>
     <label class="hint" for="net-nick" style="text-align:left">你的暱稱</label><div class="field"><input id="net-nick" maxlength="12" value="${esc(NET.nick)}" placeholder="例如：taco"></div>
@@ -75,7 +75,7 @@ async function netJoin(){audio.init();const v=(document.getElementById("net-code
   showPanel(`<div class="card"><h2>線上對戰</h2><p>連線到房間 ${esc(v)}…</p></div>`);
   if(await netEnter(v,false))showRoom()}
 function netLeave(){if(NET.unsub){NET.unsub();NET.unsub=null}if(NET.room){NET.room.leave().catch(()=>{});NET.room=null}NET.opp=null;NET.code=null;if(match&&match.net)match=null}
-function showRoom(){state="room";if(match&&match.net&&!match.over)return;
+function showRoom(){state="room";if(match&&match.net&&!match.over)return;audio.lobbyMusic();
   const opp=NET.opp?`<span class="dot on"></span>${esc(oppName())} 已加入`:`<span class="dot"></span>等朋友加入…`;
   const modes=MODES.filter(m=>m.cfg.vs).map(m=>kbtn(m.key,m.title,m.desc,"net-mode"+m.key)).join("");
   showPanel(`<div class="card"><h2>房間</h2><div class="code">${esc(NET.code)}</div><p style="text-align:center">把這組房號告訴朋友<br>你是 ${esc(myNick())}${NET.host?"（房主）":""}</p>
