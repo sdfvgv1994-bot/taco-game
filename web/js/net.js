@@ -10,21 +10,29 @@ const NET={api:null,room:null,code:null,host:false,opp:null,round:0,seen:0,sent:
 /* PeerJS 版連線：不用登入，房主用「taco-blocks-房號」當自己的代號，朋友直接連過去。
    做成跟 room 一樣的樣子（join / onPeers / presence / leave），下面的對戰程式完全不用改。 */
 const PEER_PREFIX="taco-blocks-v1-";
+const PEER_BEAT=2000,PEER_TIMEOUT=15000;   // 心跳間隔、多久沒聲音算離開（毫秒）
 const peerApi={join:(name,host)=>new Promise((res,rej)=>{
   const id=PEER_PREFIX+name;let peer;
   try{peer=host?new Peer(id,{debug:0}):new Peer({debug:0})}catch(e){rej({code:"no_peer"});return}
-  let conn=null,theirs=null,mine=null,peersFn=null,discFn=null,done=false,closed=false;
+  let conn=null,theirs=null,mine=null,peersFn=null,discFn=null,done=false,closed=false,lastSeen=0,hb=null;
   const emit=()=>{if(peersFn)peersFn({peers:conn&&conn.open&&theirs?[{peer:conn.peer,presence:theirs,sameTab:false}]:[]})};
+  // 對方不見了（說了再見、連線關閉、或太久沒聲音）：當成離開
+  const lost=c=>{if(conn!==c)return;conn=null;theirs=null;try{c.close()}catch(e){}emit();if(!host&&!closed&&discFn&&state==="room")discFn()};
+  // 心跳：手機上對方關掉時連線常常不會通知，所以每 PEER_BEAT 毫秒把自己的 presence 再送一次，
+  // 超過 PEER_TIMEOUT 毫秒都沒收到對方任何東西，就當成對方離開（暫停中也照樣在送，不會誤判）
+  const beat=()=>{if(!conn||!conn.open)return;if(mine)try{conn.send(mine)}catch(e){}if(Date.now()-lastSeen>PEER_TIMEOUT)lost(conn)};
   const wire=c=>{if(host&&conn&&conn.open){c.on("open",()=>c.close());return}
-    conn=c;theirs=null;
-    c.on("open",()=>{if(mine)try{c.send(mine)}catch(e){}emit()});
-    c.on("data",d=>{if(d&&typeof d==="object"){theirs=d;emit()}});
-    c.on("close",()=>{if(conn!==c)return;conn=null;theirs=null;emit();if(!host&&!closed&&discFn&&state==="room")discFn()});
+    conn=c;theirs=null;lastSeen=Date.now();
+    c.on("open",()=>{lastSeen=Date.now();if(mine)try{c.send(mine)}catch(e){}emit()});
+    c.on("data",d=>{lastSeen=Date.now();if(!d||typeof d!=="object")return;if(d.bye){lost(c);return}theirs=d;emit()});
+    c.on("close",()=>lost(c));
     c.on("error",()=>{})};
+  hb=setInterval(beat,PEER_BEAT);
   const room={onPeers(fn,onDisc){peersFn=fn;discFn=onDisc||null;emit();return()=>{peersFn=null;discFn=null}},
     presence(p){mine=p;if(conn&&conn.open)try{conn.send(p)}catch(e){}return Promise.resolve()},
-    leave(){closed=true;try{peer.destroy()}catch(e){}return Promise.resolve()}};
-  const fail=code=>{if(done)return;done=true;closed=true;try{peer.destroy()}catch(e){}rej({code})};
+    leave(){closed=true;clearInterval(hb);if(conn&&conn.open)try{conn.send({bye:true})}catch(e){}   // 先說再見，對方馬上知道
+      setTimeout(()=>{try{peer.destroy()}catch(e){}},200);return Promise.resolve()}};
+  const fail=code=>{if(done)return;done=true;closed=true;clearInterval(hb);try{peer.destroy()}catch(e){}rej({code})};
   const timer=setTimeout(()=>fail("timeout"),12000);
   peer.on("open",()=>{if(host){done=true;clearTimeout(timer);res(room);return}
     const c=peer.connect(id,{reliable:true,serialization:"json"});wire(c);
@@ -54,8 +62,10 @@ async function netEnter(code,host,quiet){try{NET.room=await NET.api.join("taco-"
   Object.assign(NET,{code,host,opp:null,round:0,seen:0,sent:0});
   NET.unsub=NET.room.onPeers(ch=>{const others=ch.peers.filter(p=>!p.sameTab);
       const keep=others.find(p=>NET.opp&&p.peer===NET.opp.peer)||others.find(p=>p.presence.role===(host?"guest":"host"))||null;
-      const wasPlaying=NET.opp&&!keep&&state==="play"&&match&&match.net&&!match.over;NET.opp=keep;
-      if(wasPlaying){netFinish(0,"對手離開了房間");return}
+      const gone=NET.opp&&!keep,inMatch=state==="play"&&match&&match.net;NET.opp=keep;
+      if(gone&&inMatch&&!match.over){netFinish(0,"對手離開了房間");return}            // 打到一半：你贏
+      if(gone&&!host&&(state==="room"||inMatch)){netLeave();showOnline("房主離開了房間");return}   // 房間、結算畫面：沒有房主就退出
+      if(gone&&host&&inMatch){showRoom();return}                                        // 房主看完結算：回房間等下一個朋友
       if(!host&&keep)netGuestCheck();if(state==="room")showRoom();if(state==="play"&&match&&match.net)netPauseCheck()},
     ()=>{if(state==="room"||(state==="play"&&match&&match.net)){netLeave();showOnline("連線中斷了")}});
   netPublish(true);return true}
