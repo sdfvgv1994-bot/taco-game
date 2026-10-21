@@ -46,8 +46,8 @@ const audio={ctx:null,muted:false,timer:null,step:0,paused:false,wantMusic:false
   chipStep(st,t,u){const m=this.seq[st%this.loopLen];if(m){const d=m[1]*u*.9;this.synth(m[0],t,d,.09,"square",6000,this.out());if(st%2===0)this.synth(m[0]/2,t,d,.07,"triangle",6000,this.out())}},
   /* 大廳音樂（主選單、設定、線上房間）：Korobeiniki（俄羅斯民謠，公有領域）的 Lo-fi 爵士改編，自己編的伴奏。
      88 拍、反拍搖擺；每半小節一個爵士和弦（Am9、E7♭9、Dm9、Cmaj9），電鋼琴和弦、木琴／鐘聲旋律、
-     柔和大鼓與邊擊、沙鈴、黑膠雜音；第二輪旋律多一層低八度的電鋼琴 */
-  lobbyBpm:88,lobbyBusy:false,   // 大廳音樂的速度；Busy＝鼓和沙鈴打兩倍密
+     柔和大鼓與邊擊、十六分音符沙鈴與鬼音小鼓、黑膠雜音；第二輪旋律多一層低八度的電鋼琴 */
+  lobbyBpm:88,lobbyBusy:true,    // 大廳音樂的速度；Busy＝鼓和沙鈴打兩倍密（老闆選了 88 拍＋密鼓）
   lobbyChords:(()=>{const Am=["A",[0,3,7,10,14]],E7=["E",[0,4,7,10,13]],Dm=["D",[0,3,7,10,14]],C=["C",[0,4,7,11,14]];
     return [Am,E7, Am,Am, E7,E7, Am,Am, Dm,Dm, C,Am, E7,E7, Am,Am]})(),   // 每半小節（8 步）一個
   softKick(t){const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.frequency.setValueAtTime(110,t);o.frequency.exponentialRampToValueAtTime(45,t+.1);
