@@ -374,11 +374,22 @@ def test_settings_ignore_broken_file(tmp_path):
 
 
 def test_speed_presets():
+    _tetris_ui()
+    import controls   # 長按速度存在 controls 積木裡（Controls 也從這裡讀）
+    controls.set_speed("快")
+    assert (controls.DAS, controls.ARR) == controls.SPEEDS["快"]
+    controls.set_speed("不存在")
+    assert (controls.DAS, controls.ARR) == controls.SPEEDS["中"]
+
+
+def test_split_modules_keep_old_names():
     ui = _tetris_ui()
-    ui.set_speed("快")
-    assert (ui.DAS, ui.ARR) == ui.SPEEDS["快"]
-    ui.set_speed("不存在")
-    assert (ui.DAS, ui.ARR) == ui.SPEEDS["中"]
+    import controls
+    import draw
+    import options
+    assert ui.Settings is options.Settings and ui.Records is options.Records
+    assert ui.digit is controls.digit and ui.Controls is controls.Controls
+    assert ui.draw_menu is draw.draw_menu and ui.WIDTH == draw.WIDTH
 
 
 def test_hold_key_setting():
