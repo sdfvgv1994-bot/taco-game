@@ -32,6 +32,10 @@ jobs:
           v="${GITHUB_SHA::7}"
           sed -i -E "s#(href|src)=\"(style\.css|js/[a-z_]+\.js)\"#\1=\"\2?v=$v\"#g" web/index.html
           grep -c "?v=$v" web/index.html
+          # 這一版的代號：App 拿來比對有沒有新版本（version.json），線上對戰比對雙方版本
+          sed -i "s#name=\"app-version\" content=\"dev\"#name=\"app-version\" content=\"$v\"#" web/index.html
+          grep -c "content=\"$v\"" web/index.html
+          printf '{"v":"%s"}\n' "$v" > web/version.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web

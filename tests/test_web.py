@@ -33,3 +33,11 @@ def test_installable_app_files():
     for i in m["icons"]:
         assert (WEB / i["src"]).is_file(), i["src"]
     assert (WEB / "sw.js").is_file() and (WEB / "app" / "apple-touch-icon.png").is_file()
+
+
+def test_version_is_filled_in_on_deploy():
+    """更新提示靠 app-version：repo 裡是 dev，部署時換成提交代號並寫出 version.json。"""
+    html = (WEB / "index.html").read_text(encoding="utf-8")
+    assert '<meta name="app-version" content="dev">' in html
+    flow = (WEB.parent / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
+    assert "app-version" in flow and "version.json" in flow

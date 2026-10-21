@@ -13,8 +13,9 @@ window.addEventListener("keydown",e=>{audio.init();const c=e.code,d=digitOf(c);
   if(state==="settings"){if(c==="Escape"||c==="Backspace")showMenu();else if(d>=1&&d<=ITEMS.length)handle("set"+ITEMS[d-1][0]);else if(d===ITEMS.length+1)showKeys();return}
   if(state==="keys"){if(c==="Escape"||c==="Backspace")showSettings();return}
   if(state!=="play")return;
-  if(match.over){if(["Space","Enter","NumpadEnter","KeyR"].includes(c)){if(match.net){if(NET.host)netHostStart(NET.modeKey)}else start(cfg,diff)}else if(c==="Escape"||c==="Backspace")showMenu();return}
+  if(match.over){if(["Space","Enter","NumpadEnter","KeyR"].includes(c)){if(match.net){if(NET.host)netHostStart(NET.modeKey)}else start(cfg,diff)}else if(c==="Escape"||c==="Backspace"){if(match.net)netLeave();showMenu()}return}
   if(c==="Escape"||c==="KeyP"){setPause(!paused);return}
+  if(paused&&match.net){if(c==="Backspace"){netLeave();showMenu()}return}   // 線上暫停中：只能繼續（Esc / P）或離開房間
   if(paused){if(c==="KeyR")start(cfg,diff);else if(c==="Backspace"){paused=false;showMenu()}return}
   if(countdown>0||e.repeat)return;
   for(const [i,a] of controllers(c)){if(ais[i])continue;e.preventDefault();act(i,a)}});
@@ -27,7 +28,7 @@ document.querySelectorAll("#touch button").forEach(b=>{const a=b.dataset.a;
   b.addEventListener("pointerdown",down);b.addEventListener("pointerup",up);b.addEventListener("pointercancel",up)});
 document.getElementById("btn-pause").addEventListener("click",()=>{if(state==="play"&&!match.over)setPause(!paused)});
 document.getElementById("btn-menu").addEventListener("click",()=>{audio.init();waitKey=null;
-  if(state==="play"&&match&&match.net){netLeave();showMenu()}       // 線上對戰沒辦法暫停：直接離開（算棄權）
+  if(state==="play"&&match&&match.net){if(paused||match.over||!netSetPause(true)){netLeave();showMenu()}}   // 線上：先兩邊一起暫停，暫停畫面有「離開房間」
   else if(state==="play"&&match&&!match.over&&!paused)setPause(true);   // 玩到一半先暫停，暫停畫面裡有「回主選單」
   else if(state!=="menu"){if(state==="online"||state==="room")netLeave();paused=false;showMenu()}});
 const mb=document.getElementById("btn-mute");function muteBtn(){mb.textContent=audio.muted?"取消靜音 M":"靜音 M"}

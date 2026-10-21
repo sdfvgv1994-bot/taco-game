@@ -3,12 +3,14 @@
 "use strict";
 /* ================= 面板（選單、設定、按鍵、暫停、結算） ================= */
 function hidePanel(){panel.hidden=true;panel.innerHTML="";document.body.classList.remove("menu-open")}
-function showPanel(html){panel.innerHTML=html;panel.hidden=false;document.body.classList.add("menu-open");const b=panel.querySelector("button");if(b)b.focus({preventScroll:true})}
+/* 自己跳出來的面板（結算、對手按的暫停）：剛出現的一下子不接受點擊，免得還在連按觸控鍵時誤按到「離開房間」 */
+let panelGuard=0;
+function showPanel(html,guard){panel.innerHTML=html;panelGuard=guard?performance.now()+800:0;panel.hidden=false;document.body.classList.add("menu-open");const b=panel.querySelector("button");if(b)b.focus({preventScroll:true})}
 const kbtn=(k,t,sub,act,val)=>`<li><button type="button" class="${val!=null?"setting":""}" data-act="${act}"><span class="k">${k}</span><span class="t">${t}${sub?`<small>${sub}</small>`:""}</span>${val!=null?`<span class="val">${val}</span>`:""}</button></li>`;
 const keyLine=i=>{const m=keys[i];return`${keyName(m.left)} ${keyName(m.right)} 移動　${keyName(m.down)} 軟降　${keyName(m.cw)} 順轉　${keyName(m.ccw)} 逆轉　${keyName(m.drop)} 硬降　${keyName(m.hold)} 暫存`};
 function showMenu(){state="menu";match=null;paused=false;audio.stopMusic();
   const extra={5:records.sprint!=null?`　最佳 ${fmt(records.sprint)}`:"",6:records.marathon!=null?`　最佳 ${records.marathon} 行`:"",2:records.score!=null?`　最高 ${records.score.toLocaleString()} 分`:""};
-  showPanel(`<div class="card"><h2>選擇模式</h2><ul class="menu">${MODES.map(m=>kbtn(m.key,m.title,m.desc+(extra[m.key]||""),"mode"+m.key)).join("")}
+  showPanel(`<div class="card">${typeof PWA!=="undefined"&&PWA.hasUpdate()?`<div class="row-btns"><button type="button" class="update" data-act="update">🆕 有新版本，點一下更新</button></div>`:""}<h2>選擇模式</h2><ul class="menu">${MODES.map(m=>kbtn(m.key,m.title,m.desc+(extra[m.key]||""),"mode"+m.key)).join("")}
     ${kbtn(7,"線上對戰","建立房間或輸入房號，和朋友用各自的手機對打","online")}
     ${kbtn(0,"設定","音效、落點預覽、移動速度、自訂按鍵","settings")}</ul>
     ${typeof PWA!=="undefined"&&PWA.canInstall()?`<div class="row-btns"><button type="button" data-act="install">📲 安裝到桌面</button></div>`:""}
@@ -72,21 +74,21 @@ function showResult(){const m=match,P=m.players,two=P.length===2;let head;
       連擊每次再加 50 × 連擊數 × 等級；連續四行或連續 T 轉 × 1.5；全清再加 3000 × 等級；軟降每格 1 分、硬降每格 2 分。
       只有「分數對戰」用分數判勝負，其他模式分數只是參考。</details>
     ${extra.map(l=>`<p style="text-align:center">${l}</p>`).join("")}
-    <ul class="menu">${m.net?(NET.host?kbtn("R","再來一局（同模式）","對手會一起開始","restart")+kbtn("M","換模式","回房間選模式","net-room"):`<li><p class="hint">等房主開下一局…</p></li>`)+kbtn("⌫","離開房間","","net-leave"):kbtn("R","再來一局","空白鍵 / Enter 也可以","restart")+kbtn("⌫","回主選單","Esc / Backspace","menu")}</ul></div>`)}
+    <ul class="menu">${m.net?(NET.host?kbtn("R","再來一局（同模式）","對手會一起開始","restart")+kbtn("M","換模式","回房間選模式","net-room"):`<li><p class="hint">等房主開下一局…</p></li>`)+kbtn("⌫","離開房間","","net-leave"):kbtn("R","再來一局","空白鍵 / Enter 也可以","restart")+kbtn("⌫","回主選單","Esc / Backspace","menu")}</ul></div>`,true)}
 
-panel.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;audio.init();
+panel.addEventListener("click",e=>{const b=e.target.closest("button");if(!b||performance.now()<panelGuard)return;audio.init();
   if(b.dataset.key){const [i,a]=b.dataset.key.split(":");waitKey=[+i,a];showKeys();return}
   if(b.dataset.act)handle(b.dataset.act)});
 function handle(a){
   if(a.startsWith("mode")){const m=MODES.find(x=>x.key===+a.slice(4));if(m.cfg.vs)showDiff(m.cfg);else start(m.cfg,"普通")}
-  else if(a==="install")PWA.install();else if(a==="online")showOnline();else if(a==="net-create")netCreate();else if(a==="net-join")netJoin();
+  else if(a==="install")PWA.install();else if(a==="update")location.reload();else if(a==="online")showOnline();else if(a==="net-create")netCreate();else if(a==="net-join")netJoin();
   else if(a.startsWith("net-mode"))netHostStart(+a.slice(8));else if(a==="net-room")showRoom();else if(a==="net-leave"){netLeave();showMenu()}
   else if(a==="settings"){waitKey=null;showSettings()}else if(a==="keys")showKeys();
   else if(a==="keys-reset"){keys=DEFAULT_KEYS.map(k=>Object.assign({},k));save("taco-blocks-keys",keys);waitKey=null;showKeys("已恢復預設按鍵")}
   else if(a.startsWith("diff")){const n=+a.slice(4);start(cfg,n===4?null:Object.keys(DIFFICULTY)[n-1])}
   else if(a.startsWith("set")){const k=a.slice(3);toggleSetting(k);if(k==="style"||k==="music"){audio.stopMusic();if(settings.music){audio.startMusic();clearTimeout(audio.preview);audio.preview=setTimeout(()=>{if(state!=="play")audio.stopMusic()},6000)}}showSettings()}
   else if(a==="resume")setPause(false);else if(a==="restart"){if(match&&match.net){if(NET.host)netHostStart(NET.modeKey)}else start(cfg,diff)}else if(a==="menu"){paused=false;showMenu()}}
-function setPause(v){if(state!=="play"||match.over||match.net)return;paused=v;audio.paused=v;if(v){for(const k in held)delete held[k];match.players.forEach(p=>p.soft=false);showPause()}else hidePanel()}
+function setPause(v){if(state!=="play"||match.over)return;if(match.net)return netSetPause(v);paused=v;audio.paused=v;if(v){for(const k in held)delete held[k];match.players.forEach(p=>p.soft=false);showPause()}else hidePanel()}
 function bindKey(code){const [i,a]=waitKey;waitKey=null;
   if(code==="Escape"){showKeys();return}
   if(RESERVED.includes(code)){showKeys(`「${keyName(code)}」是系統用的鍵，請換一個`);return}
