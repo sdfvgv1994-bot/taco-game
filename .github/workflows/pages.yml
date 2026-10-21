@@ -36,6 +36,8 @@ jobs:
           sed -i "s#name=\"app-version\" content=\"dev\"#name=\"app-version\" content=\"$v\"#" web/index.html
           grep -c "content=\"$v\"" web/index.html
           printf '{"v":"%s"}\n' "$v" > web/version.json
+          # 部署時間（台北時間），顯示在主選單最下面
+          sed -i "s#name=\"app-built\" content=\"\"#name=\"app-built\" content=\"$(TZ=Asia/Taipei date '+%m/%d %H:%M')\"#" web/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web

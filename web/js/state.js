@@ -30,3 +30,4 @@ function flush(){match.players.forEach((p,i)=>{const ev=[...new Set(p.sfx)];p.sf
 
 /* 這一版的代號（部署時換成提交代號；本機開是 dev）：更新提示、線上對戰比對雙方版本用 */
 const APP_VERSION=(document.querySelector('meta[name="app-version"]')||{}).content||"dev";
+const APP_BUILT=(document.querySelector('meta[name="app-built"]')||{}).content||"";   // 部署時間（台北時間），本機開是空的

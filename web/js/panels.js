@@ -14,7 +14,8 @@ function showMenu(){state="menu";match=null;paused=false;audio.stopMusic();
     ${kbtn(7,"線上對戰","建立房間或輸入房號，和朋友用各自的手機對打","online")}
     ${kbtn(0,"設定","音效、落點預覽、移動速度、自訂按鍵","settings")}</ul>
     ${typeof PWA!=="undefined"&&PWA.canInstall()?`<div class="row-btns"><button type="button" data-act="install">📲 安裝到桌面</button></div>`:""}
-    <p class="hint">數字鍵選擇（上排或數字鍵盤都可以）<br>玩家 1：${keyLine(0)}<br>玩家 2：${keyLine(1)}<br>對電腦或單人時兩組按鍵都能用　Esc / P 暫停　M 靜音</p></div>`)}
+    <p class="hint">數字鍵選擇（上排或數字鍵盤都可以）<br>玩家 1：${keyLine(0)}<br>玩家 2：${keyLine(1)}<br>對電腦或單人時兩組按鍵都能用　Esc / P 暫停　M 靜音</p>
+    <p class="ver">版本 ${esc(APP_VERSION)}${APP_BUILT?`・${esc(APP_BUILT)} 更新`:""}</p></div>`)}
 function showDiff(c){state="diff";cfg=c;showPanel(`<div class="card"><h2>${MODES.find(m=>m.cfg===c).title}：選對手</h2><ul class="menu">${Object.keys(DIFFICULTY).map((d,i)=>kbtn(i+1,`對電腦（${d}）`,`電腦每 ${DIFFICULTY[d]} 秒動一次`,"diff"+(i+1))).join("")}${kbtn(4,"雙人同機","同一台鍵盤，玩家 1 對玩家 2","diff4")}</ul><div class="row-btns"><button type="button" data-act="menu">← 返回主選單</button></div><p class="hint">Esc / Backspace 也可以返回</p></div>`)}
 function showSettings(){state="settings";showPanel(`<div class="card"><h2>設定</h2><ul class="menu">${ITEMS.map(([k,t],i)=>kbtn(i+1,t,k==="style"?(TRACKS[settings.style]?`by ${TRACKS[settings.style].by}（Pixabay）`:settings.style==="隨機"?"每局從四首音樂檔裡挑一首":"程式即時合成"):"","set"+k,label(k))).join("")}${kbtn(ITEMS.length+1,"按鍵設定","自己按鍵盤決定每個動作用哪個鍵","keys")}</ul><div class="row-btns"><button type="button" data-act="menu">← 返回主選單</button></div><p class="hint">按數字或點一下切換，自動存在這個瀏覽器　Esc / Backspace 也可以返回<br>音樂檔來自 Pixabay：${Object.entries(TRACKS).map(([n,t])=>`${n}（${t.by}）`).join("、")}</p></div>`)}
 function showKeys(msg=""){state="keys";const cell=(i,a)=>`<button type="button" data-key="${i}:${a}" class="${waitKey&&waitKey[0]===i&&waitKey[1]===a?"wait":""}">${waitKey&&waitKey[0]===i&&waitKey[1]===a?"請按鍵…":keyName(keys[i][a])}</button>`;
