@@ -13,6 +13,11 @@
 **https://sdfvgv1994-bot.github.io/taco-game/** ，手機、電腦打開就能玩，不用安裝也不用登入。
 
 - 模式：KO 對戰、分數對戰、攻擊對戰、生死戰、Sprint 40、Marathon；可以對電腦，或兩個人用同一台
+- **裝到手機桌面**：打開網址後，主選單按「📲 安裝到桌面」（Android 的 Chrome、Edge）；iPhone 用 Safari 的「分享 → 加入主畫面」。
+  裝好之後是全螢幕、沒有網址列，沒網路也能玩單機和對電腦，更新會自動跟上
+- 分享給朋友：[QR code 卡片](web/app/share-qr.png)
+
+  <img src="web/app/share-qr.png" width="220" alt="掃描打開 taco 方塊對戰">
 - **線上對戰**：一個人「建立房間」拿到 4 位數房號，朋友打開同一個網址、輸入房號就能連線對打。
   連線用 [PeerJS](https://peerjs.com/)，兩台裝置直接互連，不經過我們的伺服器。
   少數公司或學校的網路會擋這種直連，連不上時換手機網路試試。
