@@ -46,7 +46,7 @@ function showOnline(msg=""){state="online";
     <div class="field"><input id="net-code" inputmode="numeric" maxlength="4" placeholder="4 位數"><button type="button" data-act="net-join">加入</button></div>
     ${msg?`<p style="color:var(--amber)">${esc(msg)}</p>`:""}
     <div class="row-btns"><button type="button" data-act="menu">← 返回主選單</button></div>
-    <p class="hint">不用登入：把這個網址傳給朋友，輸入同一組房號就好。連線時沒辦法暫停。少數公司或學校網路可能連不上，換手機網路試試。</p></div>`);
+    <p class="hint">不用登入：把這個網址傳給朋友，輸入同一組房號就好。暫停時兩邊會一起停。少數公司或學校網路可能連不上，換手機網路試試。</p></div>`);
   const nk=document.getElementById("net-nick");if(nk)nk.addEventListener("input",()=>{NET.nick=nk.value.trim();try{localStorage.setItem("taco-blocks-nick",NET.nick)}catch(e){}})}
 function myNick(){return(NET.nick||"玩家").slice(0,12)}
 async function netEnter(code,host,quiet){try{NET.room=await NET.api.join("taco-"+code,host)}catch(e){const c=e&&e.code;if(quiet&&c==="unavailable-id")return"taken";
@@ -56,7 +56,7 @@ async function netEnter(code,host,quiet){try{NET.room=await NET.api.join("taco-"
       const keep=others.find(p=>NET.opp&&p.peer===NET.opp.peer)||others.find(p=>p.presence.role===(host?"guest":"host"))||null;
       const wasPlaying=NET.opp&&!keep&&state==="play"&&match&&match.net&&!match.over;NET.opp=keep;
       if(wasPlaying){netFinish(0,"對手離開了房間");return}
-      if(!host&&keep)netGuestCheck();if(state==="room")showRoom()},
+      if(!host&&keep)netGuestCheck();if(state==="room")showRoom();if(state==="play"&&match&&match.net)netPauseCheck()},
     ()=>{if(state==="room"||(state==="play"&&match&&match.net)){netLeave();showOnline("連線中斷了")}});
   netPublish(true);return true}
 async function netCreate(){audio.init();showPanel(`<div class="card"><h2>線上對戰</h2><p>建立房間中…</p></div>`);
@@ -70,6 +70,7 @@ function showRoom(){state="room";if(match&&match.net&&!match.over)return;
   const modes=MODES.filter(m=>m.cfg.vs).map(m=>kbtn(m.key,m.title,m.desc,"net-mode"+m.key)).join("");
   showPanel(`<div class="card"><h2>房間</h2><div class="code">${esc(NET.code)}</div><p style="text-align:center">把這組房號告訴朋友<br>你是 ${esc(myNick())}${NET.host?"（房主）":""}</p>
     <p style="text-align:center">${opp}</p>
+    ${NET.opp&&NET.opp.presence.ver!==APP_VERSION?`<p style="color:var(--amber);text-align:center">⚠ 你和對手的遊戲版本不同，可能會不同步。請兩邊都回主選單更新（或把 App 關掉重開）</p>`:""}
     ${NET.host?(NET.opp?`<p>選一個模式就開始：</p><ul class="menu">${modes}</ul>`:""):`<p class="hint">等房主選模式開始…</p>`}
     <div class="row-btns"><button type="button" data-act="net-leave">離開房間</button></div></div>`)}
 function netHostStart(key){if(!NET.host||!NET.opp)return;const m=MODES.find(x=>x.key===key&&x.cfg.vs);if(!m)return;
@@ -81,7 +82,7 @@ function netGuestCheck(){const g=NET.opp&&NET.opp.presence.game;if(!g||!(g.round
 function netBegin(g){const m=MODES.find(x=>x.key===g.mode);cfg=m.cfg;diff="net";state="play";paused=false;scored=false;note="";
   match=new Match(2,cfg.kind,cfg.time||null,g.seed);match.net=true;match.startAt=g.startAt;ais={};
   const r=match.players[1];r.remote=true;r.queue=[];
-  names=[myNick(),oppName()];NET.seen=0;NET.sent=0;NET.evn=0;NET.lastEv="";
+  names=[myNick(),oppName()];NET.seen=0;NET.sent=0;NET.evn=0;NET.lastEv="";NET.pz={round:NET.round,seq:0,on:false,t:0,by:""};NET.pzKey="";NET.pausedAt=0;NET.resuming=false;
   countdown=Math.max(.5,(g.startAt-Date.now())/1000);lastBeep=0;audio.stopMusic();audio.paused=false;for(const k in held)delete held[k];hidePanel()}
 /* 把對手 presence 裡的狀態套到畫面上的第 2 位玩家；多出來的送出行數 = 打過來的垃圾 */
 function netApplyRemote(m){const o=NET.opp,s=o&&o.presence.st;if(!s||s.round!==NET.round)return;const r=m.players[1],me=m.players[0];
@@ -105,11 +106,11 @@ function netUpdate(m,dt){const me=m.players[0],r=m.players[1];
   if(m.mode==="score"&&!me.alive&&!r.alive)return netFinish(null);
   if(m.timeUp())netFinish(null);
   netPublish(false)}
-function netFinish(winner,why){const m=match;if(!m||m.over||m.ending)return;
+function netFinish(winner,why){const m=match;if(!m||m.over||m.ending)return;if(paused){paused=false;audio.paused=false;hidePanel()}
   if(winner==null){m.ending=Date.now();netPublish(true,true)}else{netPublish(true,true);m.over=true;m.winner=winner}
   if(why)note=why}
 function netPublish(force,over){if(!NET.room)return;const now=performance.now();if(!force&&now-NET.lastPub<60)return;NET.lastPub=now;
-  const pres={nick:myNick(),role:NET.host?"host":"guest",game:NET.host?NET.game||null:null,st:null};
+  const pres={nick:myNick(),role:NET.host?"host":"guest",game:NET.host?NET.game||null:null,st:null,ver:APP_VERSION,pz:NET.pz||null};
   if(match&&match.net){const me=match.players[0];const g=me.grid.map(r=>r.slice());if(me.active)for(const [x,y] of me.cells())if(y>=0&&y<ROWS)g[y][x]=me.kind;
     if(me.event!==NET.lastEv){NET.lastEv=me.event;NET.evn++}
     pres.st={round:NET.round,grid:g.map(r=>r.map(c=>c||".").join("")).join(""),score:me.score,lines:me.lines,sent:NET.sent,deaths:me.deaths,alive:me.alive,done:me.done,
@@ -117,3 +118,26 @@ function netPublish(force,over){if(!NET.room)return;const now=performance.now();
       book:me.book,h:me.height(),ev:me.eventAge<1.5?me.event:"",evn:NET.evn,over:!!(over||match.over||match.ending)}}
   NET.room.presence(pres).catch(()=>{})}
 
+
+/* ================= 線上暫停：兩邊一起停、一起繼續 =================
+   各自把最後一次的暫停／繼續指令（第幾局、第幾次、開或關、送出的時間）放在 presence 的 pz；
+   兩邊都取「時間最晚」的那一個指令，所以畫面一定一致。繼續時兩邊都從指令時間起倒數 3 秒，
+   計時器（match.startAt）往後挪「暫停的那段時間＋3 秒」，剩餘時間兩邊一樣。 */
+function netPzList(){const o=NET.opp&&NET.opp.presence.pz;
+  return [NET.pz,o].filter(p=>p&&p.round===NET.round&&p.seq>0&&typeof p.t==="number")}
+function netSetPause(v){const m=match;if(!m||!m.net||m.over||m.ending)return false;
+  if(v&&(paused||countdown>0))return false;if(!v&&!paused)return false;
+  if(!(NET.opp&&NET.opp.presence.ver)){m.players[0].ev("對手是舊版，不能暫停");return false}   // 舊版不認得暫停指令
+  NET.pz={round:NET.round,seq:(NET.pz&&NET.pz.round===NET.round?NET.pz.seq:0)+1,on:v,t:Date.now(),by:myNick()};
+  netPublish(true);netPauseCheck();return true}
+function netPauseCheck(){const m=match;if(!m||!m.net||m.over||m.ending)return;
+  const list=netPzList();if(!list.length)return;
+  const hostPz=NET.host?NET.pz:NET.opp&&NET.opp.presence.pz;   // 同一毫秒兩邊都按：聽房主的
+  const c=list.reduce((a,b)=>b.t>a.t||(b.t===a.t&&b===hostPz)?b:a);
+  const key=`${c.on}:${c.t}`;if(key===NET.pzKey)return;NET.pzKey=key;
+  if(c.on){if(!paused){paused=true;audio.paused=true;NET.pausedAt=c.t;for(const k in held)delete held[k];m.players[0].soft=false}
+    showNetPause(c===NET.pz?"你":c.by)}
+  else if(paused){const resumeAt=c.t+3000;m.startAt+=resumeAt-NET.pausedAt;
+    paused=false;NET.resuming=true;countdown=Math.max(.3,(resumeAt-Date.now())/1000);lastBeep=0;hidePanel()}}
+function showNetPause(by){showPanel(`<div class="card"><div class="big">PAUSE</div><p style="text-align:center">${esc(by)} 暫停了，兩邊都停住</p>
+  <ul class="menu">${kbtn("Esc","繼續","兩邊一起倒數 3 秒，也可以按 P","resume")}${kbtn("⌫","離開房間","會算你棄權","net-leave")}</ul></div>`)}

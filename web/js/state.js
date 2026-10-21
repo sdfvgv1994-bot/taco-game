@@ -28,3 +28,5 @@ function act(i,a){const p=match.players[i];if(!p)return;
 function release(i,a){const p=match&&match.players[i];if(!p)return;if(a==="down")p.soft=false;if((a==="left"&&held[i]&&held[i].d<0)||(a==="right"&&held[i]&&held[i].d>0))delete held[i]}
 function flush(){match.players.forEach((p,i)=>{const ev=[...new Set(p.sfx)];p.sfx=[];for(const n of ev){if(ais[i]){if(n==="ko"||n.startsWith("clear")||n==="tspin")audio.play(n)}else if(n!=="warn")audio.play(n)}})}
 
+/* 這一版的代號（部署時換成提交代號；本機開是 dev）：更新提示、線上對戰比對雙方版本用 */
+const APP_VERSION=(document.querySelector('meta[name="app-version"]')||{}).content||"dev";
