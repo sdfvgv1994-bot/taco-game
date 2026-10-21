@@ -1,4 +1,12 @@
 /* taco 方塊對戰的樣式 */
+/* 基本重設：遊戲最早做在 claude.ai，那邊的頁面外框會自帶這幾條；放到 GitHub Pages 要自己加。
+   最重要的是最後一條：hidden 的面板（選單、暫停、結算）一定要藏起來，不然開局後會蓋在遊戲上 */
+:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}
+img{max-width:100%}
+[hidden]:not([hidden=until-found i]){display:none!important}
+
 /* 版面：一台霓虹街機。上方是看板字，中間一個畫布畫所有板子，選單 / 暫停 / 結算都是蓋在畫布上的面板；手機下方多一排觸控鍵 */
 :root{
   color-scheme:dark;
