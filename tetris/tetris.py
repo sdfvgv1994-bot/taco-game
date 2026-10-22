@@ -67,7 +67,7 @@ def main():
                 if i in ais:
                     if name == "ko":
                         audio.play(name, 0.5)
-                    elif n == 2 and (name.startswith("clear") or name in ("tspin", "perfect")):
+                    elif n == 2 and (name.startswith("clear") or name in ("tspin", "perfect", "burst")):
                         audio.play(name, 0.4)
                 else:
                     audio.play(name)

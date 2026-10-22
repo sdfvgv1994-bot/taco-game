@@ -409,3 +409,32 @@ def test_hold_defaults_to_c_not_shift(tmp_path):
     assert s["hold"] == "C / ."      # 預設不用 Shift，避免切到中英文
     s.toggle("hold")
     assert s["hold"] == "Shift"
+
+
+def clear_one_line_at_combo(combo):
+    """讓玩家在第 combo 次連擊時消 1 行，回傳送出的攻擊與提示文字。"""
+    p = new_player("I")
+    xs = {x for x, _ in p.cells()}
+    p.grid[ROWS - 1] = [None if x in xs else "G" for x in range(COLS)]
+    p.grid[ROWS - 2][0] = "G"  # 留一格，避免變成全清
+    p.combo = combo - 1
+    p.hard_drop()
+    return p.sent, p.last_event, p.sfx
+
+
+def test_combo_attack_grows_with_combo():
+    from engine import COMBO_BONUS
+    assert clear_one_line_at_combo(0)[0] == 0  # 單行、沒連擊：不送
+    assert clear_one_line_at_combo(1)[0] == 1  # 連擊 x1 就開始加
+    sent = [clear_one_line_at_combo(k)[0] for k in range(1, 5)]
+    assert sent == sorted(sent) and sent == COMBO_BONUS[1:5]
+
+
+def test_combo_burst_every_five():
+    from engine import BURST_ATTACK, COMBO_BONUS
+    for k in (5, 10, 15):
+        sent, label, sfx = clear_one_line_at_combo(k)
+        assert sent == COMBO_BONUS[min(k, len(COMBO_BONUS) - 1)] + BURST_ATTACK
+        assert "爆發" in label and "burst" in sfx
+    sent, label, sfx = clear_one_line_at_combo(6)
+    assert "爆發" not in label and "burst" not in sfx

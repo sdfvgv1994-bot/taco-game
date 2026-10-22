@@ -41,3 +41,24 @@ def test_version_is_filled_in_on_deploy():
     assert '<meta name="app-version" content="dev">' in html and '<meta name="app-built" content="">' in html
     flow = (WEB.parent / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
     assert "app-version" in flow and "version.json" in flow and "app-built" in flow
+
+
+def test_web_combo_matches_python():
+    """網頁版和 Python 版的連擊攻擊要一樣（線上對戰兩邊各自算）。"""
+    import shutil
+    import subprocess
+    import sys
+    if not shutil.which("node"):
+        return
+    sys.path.insert(0, str(WEB.parent / "tetris"))
+    from engine import BURST_ATTACK, COMBO_BONUS, COMBO_BURST
+    js = (WEB / "js" / "engine.js").read_text(encoding="utf-8") + """
+    const out=[];for(let k=0;k<=15;k++){const p=new Player(rng(1));p.spawn("I");const xs=new Set(p.cells().map(c=>c[0]));
+      p.grid[ROWS-1]=Array.from({length:COLS},(_,x)=>xs.has(x)?null:"G");p.grid[ROWS-2][0]="G";p.combo=k-1;p.hardDrop();out.push([p.sent,p.event,p.sfx.includes("burst")])}
+    console.log(JSON.stringify(out));"""
+    import json
+    res = json.loads(subprocess.run(["node", "-e", js], capture_output=True, text=True, check=True).stdout)
+    for k, (sent, label, burst) in enumerate(res):
+        want = COMBO_BONUS[min(k, len(COMBO_BONUS) - 1)] + (BURST_ATTACK if k and k % COMBO_BURST == 0 else 0)
+        assert sent == want, (k, sent, want)
+        assert burst == (k > 0 and k % COMBO_BURST == 0) and (("爆發" in label) == burst)

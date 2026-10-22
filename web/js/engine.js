@@ -3,7 +3,7 @@
 "use strict";
 /* ================= 規則（和 Python 版 engine.py 一樣，另外加上分數） ================= */
 const COLS=10, ROWS=20, LOCK_DELAY=.5, LINES_PER_LEVEL=10, MAX_LEVEL=15, MAX_LOCK_RESETS=15, SOFT_INTERVAL=.03, MAX_GARBAGE=8;
-const ATTACK=[0,0,1,2,4], COMBO_BONUS=[0,0,1,1,2,2,3,3,4], PERFECT=6, TSPIN_ATTACK=[0,2,4,6], G="G";
+const ATTACK=[0,0,1,2,4], COMBO_BONUS=[0,1,1,2,2,3,3,4,4,5], COMBO_BURST=5, BURST_ATTACK=2, PERFECT=6, TSPIN_ATTACK=[0,2,4,6], G="G";
 const LINE_SCORE=[0,100,300,500,800], TSPIN_SCORE=[400,800,1200,1600], PERFECT_SCORE=3000;  // 分數 × 等級
 const ATTACK_GOAL=30;   // 攻擊對戰：先送出幾行垃圾就贏
 const BASE={I:[4,[[0,1],[1,1],[2,1],[3,1]]],O:[2,[[0,0],[1,0],[0,1],[1,1]]],T:[3,[[1,0],[0,1],[1,1],[2,1]]],
@@ -58,12 +58,13 @@ class Player{
     if(!n){this.sfx.push(ts?"tspin":"lock");if(ts){this.ev("T 轉！");this.add("tspin0",TSPIN_SCORE[0]*lvl)}this.combo=-1;this.applyGarbage()}
     else{this.combo++;this.maxCombo=Math.max(this.maxCombo,this.combo);if(n===4)this.tetrises++;
       let atk=(ts?TSPIN_ATTACK[n]:ATTACK[n])+COMBO_BONUS[Math.min(this.combo,COMBO_BONUS.length-1)];
+      const burst=this.combo>0&&this.combo%COMBO_BURST===0;if(burst)atk+=BURST_ATTACK;   // 連擊 x5、x10…：連擊爆發
       const base=(ts?TSPIN_SCORE[n]:LINE_SCORE[n])*lvl;let bonus=0;
       let label=["","單行","雙行","三行","四行消除！"][n];if(ts)label="T 轉"+label;
       if(n===4||ts){if(this.b2b){atk++;bonus=Math.round(base*.5);label="連續 "+label}this.b2b=true}else this.b2b=false;
       this.add((ts?"tspin":"line")+n,base);this.add("b2b",bonus);this.add("combo",50*this.combo*lvl);
       let perfect=false;if(this.grid.every(r=>r.every(c=>!c))){atk+=PERFECT;this.add("perfect",PERFECT_SCORE*lvl);label="全清！";this.glow=0;perfect=true}
-      if(this.combo>=1)label+=` 連擊 x${this.combo}`;this.ev(label);this.sfx.push(perfect?"perfect":ts?"tspin":"clear"+n);
+      if(this.combo>=1)label+=` 連擊 x${this.combo}`;if(burst)label+=" 爆發！";this.ev(label);this.sfx.push(perfect?"perfect":ts?"tspin":"clear"+n);if(burst)this.sfx.push("burst");
       while(atk&&this.pending.length){const t=Math.min(atk,this.pending[0]);atk-=t;this.pending[0]-=t;if(!this.pending[0])this.pending.shift()}
       this.outbox+=atk;this.sent+=atk}
     this.canHold=true;if(this.alive)this.spawn()}

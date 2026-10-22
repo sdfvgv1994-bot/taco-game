@@ -11,7 +11,9 @@ MAX_LOCK_RESETS = 15
 SOFT_INTERVAL = 0.03
 MAX_GARBAGE_PER_LOCK = 8
 ATTACK = {0: 0, 1: 0, 2: 1, 3: 2, 4: 4}  # 消幾行 -> 送出幾行垃圾
-COMBO_BONUS = [0, 0, 1, 1, 2, 2, 3, 3, 4]
+COMBO_BONUS = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5]
+COMBO_BURST = 5  # 連擊 x5、x10…：連擊爆發
+BURST_ATTACK = 2
 PERFECT_CLEAR = 6
 TSPIN_ATTACK = {1: 2, 2: 4, 3: 6}  # T 轉消幾行 -> 送出幾行垃圾
 GARBAGE = "G"
@@ -230,6 +232,9 @@ class Player:
         if cleared:
             self.combo += 1
             attack = (TSPIN_ATTACK[cleared] if tspin else ATTACK[cleared]) + COMBO_BONUS[min(self.combo, len(COMBO_BONUS) - 1)]
+            burst = self.combo > 0 and self.combo % COMBO_BURST == 0
+            if burst:
+                attack += BURST_ATTACK
             label = {1: "單行", 2: "雙行", 3: "三行", 4: "四行消除！"}[cleared]
             if tspin:
                 label = f"T 轉{label}"
@@ -246,6 +251,9 @@ class Player:
                 self.glow = 0.0
             if self.combo >= 1:
                 label += f" 連擊 x{self.combo}"
+            if burst:
+                label += " 爆發！"
+                self.sfx.append("burst")
             self._event(label)
             self.sfx.append("perfect" if self.glow == 0.0 else "tspin" if tspin else f"clear{cleared}")
             while attack and self.pending:  # 先抵銷自己身上的垃圾
