@@ -73,7 +73,8 @@ function showResult(){const m=match,P=m.players,two=P.length===2;let head;
     <div class="scroll"><table class="result"><thead><tr><th>項目（每次的分數）</th>${P.map((_,i)=>`<th>${names[i]}</th>`).join("")}</tr></thead><tbody>${scoreRows(P)}</tbody></table></div>
     <details class="how"><summary>分數怎麼算？</summary>消 1／2／3／4 行：100／300／500／800 分 × 等級；T 轉（沒消行 400，消 1／2／3 行 800／1200／1600）× 等級；
       連擊每次再加 50 × 連擊數 × 等級；連續四行或連續 T 轉 × 1.5；全清再加 3000 × 等級；軟降每格 1 分、硬降每格 2 分。
-      只有「分數對戰」用分數判勝負，其他模式分數只是參考。</details>
+      只有「分數對戰」用分數判勝負，其他模式分數只是參考。<br>
+      攻擊（送給對手的垃圾行）：雙行 1、三行 2、四行 4；連擊 x1 起每次再 +1～+5（連越久越多）；連擊 x5、x10…「連擊爆發」再 +2。</details>
     ${extra.map(l=>`<p style="text-align:center">${l}</p>`).join("")}
     <ul class="menu">${m.net?(NET.host?kbtn("R","再來一局（同模式）","對手會一起開始","restart")+kbtn("M","換模式","回房間選模式","net-room"):`<li><p class="hint">等房主開下一局…</p></li>`)+kbtn("⌫","離開房間","","net-leave"):kbtn("R","再來一局","空白鍵 / Enter 也可以","restart")+kbtn("⌫","回主選單","Esc / Backspace","menu")}</ul></div>`,true)}
 

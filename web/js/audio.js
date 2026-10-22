@@ -11,6 +11,7 @@ const audio={ctx:null,muted:false,timer:null,step:0,paused:false,wantMusic:false
     ({move:()=>T(330,.03,.06),rotate:()=>T(520,.04,.07,"triangle"),hold:()=>T(440,.08,.1,"triangle",660),drop:()=>T(180,.08,.15,"square",90),lock:()=>T(140,.05,.1),
       clear1:()=>T(660,.12,.15),clear2:()=>{T(660,.1,.15);T(880,.12,.15,"square",null,.08)},clear3:()=>{T(660,.08,.15);T(880,.08,.15,"square",null,.07);T(990,.14,.15,"square",null,.14)},
       clear4:()=>[523,659,784,1047].forEach((f,i)=>T(f,.14,.16,"square",null,i*.07)),tspin:()=>T(300,.25,.18,"sawtooth",900),perfect:()=>[523,659,784,1047,1319].forEach((f,i)=>T(f,.2,.15,"triangle",null,i*.06)),
+      burst:()=>{[784,988,1175,1568].forEach((f,i)=>T(f,.1,.14,"sawtooth",null,.12+i*.05));T(1568,.3,.12,"square",2093,.32)},
       warn:()=>T(220,.15,.12,"sawtooth",160),shot:()=>T(900,.18,.08,"sawtooth",300),hit:()=>T(120,.2,.2,"square",60),
       ko:()=>{T(880,.1,.2);T(1320,.25,.2,"square",null,.1)},dead:()=>T(400,.6,.2,"sawtooth",60),win:()=>[523,659,784,1047].forEach((f,i)=>T(f,.25,.15,"triangle",null,i*.12)),
       count:()=>T(660,.12,.15),go:()=>T(1046,.3,.18)}[n]||(()=>{}))()},

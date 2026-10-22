@@ -78,6 +78,7 @@ def build_sfx() -> dict[str, list[float]]:
         "tspin": mix(arpeggio(["A4", "C5", "E5", "A5", "C6"], 0.06, 0.25, 0.3, "triangle"),
                      tone(220, 0.5, 0.2, "square", f1=880)),
         "perfect": arpeggio(["C5", "E5", "G5", "C6", "E6", "G6", "C7", "E7"], 0.07, 0.6, 0.35, "triangle"),
+        "burst": arpeggio(["G5", "B5", "D6", "G6", "C7"], 0.05, 0.45, 0.3, "square"),
         "warn": concat([tone(110, 0.09, 0.35), tone(0, 0.05, 0), tone(110, 0.09, 0.35)]),
         "dead": tone(440, 0.8, 0.4, "square", f1=70),
         "win": arpeggio(["C5", "E5", "G5", "C6", "G5", "C6", "E6"], 0.1, 0.5, 0.35),
