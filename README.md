@@ -28,15 +28,9 @@
 
 Windows 的 `.bat` 啟動檔出錯時，視窗會停住顯示錯誤訊息，也會記在 `.cache\` 裡的 `*_log.txt`。
 
-## 網頁版：taco 歌單
+## taco 歌單
 
-**https://sdfvgv1994-bot.github.io/taco-game/player/** ，把喜歡的 YouTube 歌收成歌單連續播放。
-
-- 貼上 YouTube 影片或播放清單連結就能加入（可以一次貼很多個）；播放清單會展開成一首首歌
-- 上一首／下一首、隨機、全部循環／單曲循環／不循環；鎖定畫面和耳機按鍵也能換歌（瀏覽器支援時）
-- 用 YouTube 官方嵌入播放器播放，**不下載任何影音**，所以要有網路；上傳者不開放嵌入的歌會標成「無法播放」並自動跳過
-- 歌單存在這台裝置的瀏覽器裡，用「備份碼」搬到另一支手機
-- 一樣可以裝到手機桌面；程式在 [`web/player/`](web/player/)（`core.js` 規則、`app.js` 畫面）
+YouTube 歌單播放器搬到自己的網站：**https://sdfvgv1994-bot.github.io/taco-music/**（程式在 [taco-music](https://github.com/sdfvgv1994-bot/taco-music)）。舊網址 `/taco-game/player/` 會自動轉過去。
 
 ## 安裝
 

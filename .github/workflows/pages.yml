@@ -38,11 +38,6 @@ jobs:
           printf '{"v":"%s"}\n' "$v" > web/version.json
           # 部署時間（台北時間），顯示在主選單最下面
           sed -i "s#name=\"app-built\" content=\"\"#name=\"app-built\" content=\"$(TZ=Asia/Taipei date '+%m/%d %H:%M')\"#" web/index.html
-          # taco 歌單（web/player/）：一樣加版本號、填版本和部署時間
-          sed -i -E "s#src=\"(core|app)\.js\"#src=\"\1.js?v=$v\"#g" web/player/index.html
-          grep -c "?v=$v" web/player/index.html
-          sed -i "s#name=\"app-version\" content=\"dev\"#name=\"app-version\" content=\"$v\"#" web/player/index.html
-          sed -i "s#name=\"app-built\" content=\"\"#name=\"app-built\" content=\"$(TZ=Asia/Taipei date '+%m/%d %H:%M')\"#" web/player/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web
