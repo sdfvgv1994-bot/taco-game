@@ -21,6 +21,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== location.origin) return;
   if (url.pathname.endsWith(".mp3") || req.headers.has("range")) return;
+  if (url.pathname.startsWith(new URL("./player/", self.registration.scope).pathname)) return;   // taco 歌單有自己的 service worker
   const nav = req.mode === "navigate";
   const key = nav ? new URL("./", self.registration.scope).href : url.origin + url.pathname;
   // 網頁本身和 version.json 每次都跟伺服器確認（不用瀏覽器存了 10 分鐘的舊版），按「更新」才真的拿到新版
