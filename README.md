@@ -28,6 +28,11 @@
 
 Windows 的 `.bat` 啟動檔出錯時，視窗會停住顯示錯誤訊息，也會記在 `.cache\` 裡的 `*_log.txt`。
 
+## taco 星際戰機
+
+直式太空射擊遊戲，有自己的網站：**https://sdfvgv1994-bot.github.io/taco-games2/**（程式在 [taco-games2](https://github.com/sdfvgv1994-bot/taco-games2)）。
+手指按著拖就能移動和連射，三關打到 UFO 大魔王；一樣可以裝到手機桌面。
+
 ## taco 歌單
 
 YouTube 歌單播放器搬到自己的網站：**https://sdfvgv1994-bot.github.io/taco-music/**（程式在 [taco-music](https://github.com/sdfvgv1994-bot/taco-music)）。舊網址 `/taco-game/player/` 會自動轉過去。
