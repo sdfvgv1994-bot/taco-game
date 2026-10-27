@@ -10,10 +10,10 @@ const MODES=[
   {key:5,title:"Sprint 40 行",desc:"單人，消 40 行比時間",cfg:{kind:"sprint"}},
   {key:6,title:"Marathon",desc:"單人 15 關，越來越快",cfg:{kind:"marathon"}},
 ];
-let state="menu",cfg=null,diff=null,match=null,ais={},names=[],countdown=0,lastBeep=0,paused=false,scored=false,note="",wins=[0,0],waitKey=null;
+let state="menu",cfg=null,diff=null,match=null,ais={},names=[],countdown=0,lastBeep=0,paused=false,scored=false,note="",wins=[0,0],waitKey=null,settle=0,lastWarn=0;
 const held={};
 
-function start(c,d){cfg=c;diff=d;state="play";paused=false;scored=false;note="";
+function start(c,d){cfg=c;diff=d;state="play";paused=false;scored=false;note="";settle=0;lastWarn=0;
   const n=c.vs?2:1;match=new Match(n,c.kind,c.time||null);ais={};
   if(c.vs&&d===null)names=["玩家 1","玩家 2"];else if(c.vs){ais={1:new AI(DIFFICULTY[d])};names=["你",`電腦（${d}）`]}else names=["你"];
   countdown=settings.countdown?3:0;lastBeep=0;audio.stopMusic();audio.paused=false;if(!countdown){audio.play("go");audio.startMusic()}

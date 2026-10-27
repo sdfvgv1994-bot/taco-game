@@ -6,6 +6,9 @@ const COLS=10, ROWS=20, LOCK_DELAY=.5, LINES_PER_LEVEL=10, MAX_LEVEL=15, MAX_LOC
 const ATTACK=[0,0,1,2,4], COMBO_BONUS=[0,1,1,2,2,3,3,4,4,5], COMBO_BURST=5, BURST_ATTACK=2, PERFECT=6, TSPIN_ATTACK=[0,2,4,6], G="G";
 const LINE_SCORE=[0,100,300,500,800], TSPIN_SCORE=[400,800,1200,1600], PERFECT_SCORE=3000;  // 分數 × 等級
 const ATTACK_GOAL=30;   // 攻擊對戰：先送出幾行垃圾就贏
+const END_WARN=5, SETTLE_SECS=3;   // 限時模式最後 5 秒倒數提醒；結束後倒數 3 秒才出結算（這段時間按鍵不會重開）
+/* 限時模式快結束時要顯示的秒數（5、4、3、2、1），還沒到最後 5 秒、沒限時或已結束回 0 */
+function warnSecond(t){return t!=null&&t>0&&t<=END_WARN?Math.ceil(t):0}
 const BASE={I:[4,[[0,1],[1,1],[2,1],[3,1]]],O:[2,[[0,0],[1,0],[0,1],[1,1]]],T:[3,[[1,0],[0,1],[1,1],[2,1]]],
   S:[3,[[1,0],[2,0],[0,1],[1,1]]],Z:[3,[[0,0],[1,0],[1,1],[2,1]]],J:[3,[[0,0],[0,1],[1,1],[2,1]]],L:[3,[[2,0],[0,1],[1,1],[2,1]]]};
 const KINDS=Object.keys(BASE);

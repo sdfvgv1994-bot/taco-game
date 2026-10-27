@@ -71,3 +71,30 @@ def test_player_moved():
     assert "https://sdfvgv1994-bot.github.io/taco-music/" in html
     assert "unregister" in (WEB / "player" / "sw.js").read_text(encoding="utf-8")
     assert "./player/" in (WEB / "sw.js").read_text(encoding="utf-8")
+
+
+def test_end_countdown_before_result():
+    """結算前倒數：限時模式最後 5 秒提醒；結束後倒數 3 秒才出結算，這段時間按鍵不會直接開下一局。"""
+    import json
+    import shutil
+    import subprocess
+    js_dir = WEB / "js"
+    main = (js_dir / "main.js").read_text(encoding="utf-8")
+    inp = (js_dir / "input.js").read_text(encoding="utf-8")
+    state = (js_dir / "state.js").read_text(encoding="utf-8")
+    assert "setTimeout(()=>{if(state===\"play\"&&match===m)showResult()" not in main   # 舊的 1 秒後直接結算
+    assert "settle=SETTLE_SECS" in main and "showResult()" in main
+    over = inp[inp.index("if(match.over){"):]
+    assert over.index('e.preventDefault()') < over.index("start(cfg,diff)")            # Enter 不會被瀏覽器當成點結算面板的按鈕
+    assert "if(settle>0||e.repeat||performance.now()<panelGuard)return;" in over       # 倒數中、按住不放、結算剛出來：都不重開
+    assert "settle=0;lastWarn=0;" in state                                             # 開新局一定清掉
+    net = (js_dir / "net.js").read_text(encoding="utf-8")
+    assert "settle=0;lastWarn=0;" in net[net.index("function netBegin"):]              # 線上開新局也清掉
+    assert "match.ending&&!match.over" in main                                          # 線上等對手結果時就先顯示 FINISH
+    if not shutil.which("node"):
+        return
+    js = (js_dir / "engine.js").read_text(encoding="utf-8") + """
+    console.log(JSON.stringify({w:[null,0,-1,0.01,1,4.2,5,5.01,60].map(warnSecond),warn:END_WARN,settle:SETTLE_SECS}));"""
+    out = json.loads(subprocess.run(["node", "-e", js], capture_output=True, text=True, check=True).stdout)
+    assert out["w"] == [0, 0, 0, 1, 1, 5, 5, 0, 0]
+    assert out["warn"] == 5 and out["settle"] == 3
