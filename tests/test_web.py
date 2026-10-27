@@ -84,8 +84,13 @@ def test_end_countdown_before_result():
     state = (js_dir / "state.js").read_text(encoding="utf-8")
     assert "setTimeout(()=>{if(state===\"play\"&&match===m)showResult()" not in main   # 舊的 1 秒後直接結算
     assert "settle=SETTLE_SECS" in main and "showResult()" in main
-    assert "if(match.over){if(settle>0||e.repeat)return;" in inp                       # 倒數中、按住不放都不重開
+    over = inp[inp.index("if(match.over){"):]
+    assert over.index('e.preventDefault()') < over.index("start(cfg,diff)")            # Enter 不會被瀏覽器當成點結算面板的按鈕
+    assert "if(settle>0||e.repeat||performance.now()<panelGuard)return;" in over       # 倒數中、按住不放、結算剛出來：都不重開
     assert "settle=0;lastWarn=0;" in state                                             # 開新局一定清掉
+    net = (js_dir / "net.js").read_text(encoding="utf-8")
+    assert "settle=0;lastWarn=0;" in net[net.index("function netBegin"):]              # 線上開新局也清掉
+    assert "match.ending&&!match.over" in main                                          # 線上等對手結果時就先顯示 FINISH
     if not shutil.which("node"):
         return
     js = (js_dir / "engine.js").read_text(encoding="utf-8") + """

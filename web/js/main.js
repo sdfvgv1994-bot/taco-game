@@ -64,21 +64,22 @@ function render(dt){ctx.clearRect(0,0,W,H);const T=th();canvasBtns=[];
     text(NET.resuming?"READY":"GOAL",W/2,by-bh2/2+CELL*.9,Math.max(12,CELL*.6),T.gold,"center",T.font);
     text(NET.resuming?"兩邊一起繼續":GOALS[cfg.kind]||"",W/2,by-bh2/2+CELL*1.9,Math.max(13,CELL*.62),"#fff");
     if(!T.frame){ctx.shadowColor="#ffc933";ctx.shadowBlur=20}text(String(Math.ceil(countdown)),W/2,by+CELL*1.2,CELL*2.6,T.gold,"center",T.font==="toon"?"toon":"pixel");ctx.restore()}
-  // 限時模式最後 5 秒：半透明大數字，不擋住方塊
-  const w=countdown>0||match.over?0:warnSecond(t);
-  if(w){const by=oy+ROWS*CELL/2;ctx.save();ctx.globalAlpha=.55;
-    text("即將結束",W/2,by-CELL*2.2,Math.max(13,CELL*.7),"#ff4d6a","center",T.font);
-    text(String(w),W/2,by+CELL*.6,CELL*3.2,"#ff4d6a","center",T.font==="toon"?"toon":"pixel");ctx.restore()}
-  // 結束後：先告訴你「結束了」，倒數完才出結算（倒數中按鍵不會重開下一局）
-  if(match.over&&settle>0){   // 手機格子小：行距和框高都照字體大小算，三行才不會疊在一起
+  // 限時模式最後 5 秒：大數字半透明、不擋住方塊；對準自己的板子（手機雙人時自己的板子偏左）
+  const w=countdown>0||match.over||match.ending?0:warnSecond(t);
+  if(w){const by=oy+ROWS*CELL/2;ctx.save();
+    text("即將結束",cx,by-CELL*2.4,Math.max(15,CELL*.8),"#ff4d6a","center",T.font);
+    ctx.globalAlpha=.55;text(String(w),cx,by+CELL*.6,CELL*3.2,"#ff4d6a","center",T.font==="toon"?"toon":"pixel");ctx.restore()}
+  // 結束後：先告訴你「結束了」，倒數完才出結算（倒數中按鍵不會重開下一局）。線上時間到會先等對手結果（ending），那段也先顯示
+  if((match.over&&settle>0)||(match.ending&&!match.over)){   // 手機格子小：行距和框高都照字體大小算，三行才不會疊在一起
     const f1=Math.max(12,CELL*.6),f2=Math.max(13,CELL*.62),ns=Math.max(30,CELL*2.6),pad=Math.max(8,CELL*.4);
-    const bw2=Math.min(W-40,Math.max(CELL*16,f2*11)),bh2=pad*2+f1*1.2+f2*1.4+ns*1.1,by=oy+ROWS*CELL/2,top=by-bh2/2;ctx.save();
-    if(T.frame){rr(W/2-bw2/2,top,bw2,bh2,18);ctx.fillStyle="#1d1d2bee";ctx.fill();ctx.lineWidth=4;ctx.strokeStyle="#ffd23f";ctx.stroke()}
-    else{ctx.fillStyle="#0b0920dd";ctx.fillRect(W/2-bw2/2,top,bw2,bh2);ctx.strokeStyle="#ff3fd0";ctx.lineWidth=2;ctx.strokeRect(W/2-bw2/2,top,bw2,bh2)}
+    const bw2=Math.min(W-16,Math.max(CELL*16,f2*11)),bh2=pad*2+f1*1.2+f2*1.4+ns*1.1,by=oy+ROWS*CELL/2,top=by-bh2/2;
+    const mx=Math.min(Math.max(cx,bw2/2+8),W-bw2/2-8),left=mx-bw2/2;ctx.save();
+    if(T.frame){rr(left,top,bw2,bh2,18);ctx.fillStyle="#1d1d2bee";ctx.fill();ctx.lineWidth=4;ctx.strokeStyle="#ffd23f";ctx.stroke()}
+    else{ctx.fillStyle="#0b0920dd";ctx.fillRect(left,top,bw2,bh2);ctx.strokeStyle="#ff3fd0";ctx.lineWidth=2;ctx.strokeRect(left,top,bw2,bh2)}
     const y1=top+pad+f1*.6,y2=y1+f1*.6+f2*.8,y3=y2+f2*.7+ns*.55;
-    text("FINISH",W/2,y1,f1,T.gold,"center",T.font);
-    text("遊戲結束，準備結算",W/2,y2,f2,"#fff");
-    if(!T.frame){ctx.shadowColor="#ffc933";ctx.shadowBlur=20}text(String(Math.ceil(settle)),W/2,y3,ns,T.gold,"center",T.font==="toon"?"toon":"pixel");ctx.restore()}}
+    text("FINISH",mx,y1,f1,T.gold,"center",T.font);
+    text("遊戲結束，準備結算",mx,y2,f2,"#fff");
+    if(!T.frame){ctx.shadowColor="#ffc933";ctx.shadowBlur=20}text(String(settle>0?Math.ceil(settle):SETTLE_SECS),mx,y3,ns,T.gold,"center",T.font==="toon"?"toon":"pixel");ctx.restore()}}
 
 const rain=Array.from({length:22},()=>({k:KINDS[Math.floor(Math.random()*7)],x:Math.random(),y:Math.random(),v:.03+Math.random()*.05,r:Math.floor(Math.random()*4)}));
 function drawAttract(){const s=Math.max(14,Math.min(W,H)/24);

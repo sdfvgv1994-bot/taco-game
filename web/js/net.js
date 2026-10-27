@@ -89,7 +89,7 @@ function netHostStart(key){if(!NET.host||!NET.opp)return;const m=MODES.find(x=>x
 function netGuestCheck(){const g=NET.opp&&NET.opp.presence.game;if(!g||!(g.round>NET.round))return;
   if(Date.now()-g.startAt>8000)return;   // 錯過太久的局就不追了，等下一局
   NET.round=g.round;NET.modeKey=g.mode;netBegin(g)}
-function netBegin(g){const m=MODES.find(x=>x.key===g.mode);cfg=m.cfg;diff="net";state="play";paused=false;scored=false;note="";
+function netBegin(g){const m=MODES.find(x=>x.key===g.mode);cfg=m.cfg;diff="net";state="play";paused=false;scored=false;note="";settle=0;lastWarn=0;
   match=new Match(2,cfg.kind,cfg.time||null);match.net=true;   // 不帶 seed：自己的方塊順序自己抽
   match.startAt=g.startAt;ais={};
   const r=match.players[1];r.remote=true;r.queue=[];
