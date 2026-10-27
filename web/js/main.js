@@ -8,14 +8,17 @@ function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;
     if(countdown>0){countdown-=dt;const b=countdown>0?Math.ceil(countdown):0;if(b!==lastBeep){audio.play(b?"count":"go");if(!b){if(NET.resuming){NET.resuming=false;audio.paused=false}else audio.startMusic()}lastBeep=b}}
     else if(!match.over){const [das,arr]=SPEEDS[settings.speed];
       for(const i in held){const h=held[i];h.t+=dt;while(h.t>=das+arr){h.t-=arr;match.players[i].move(h.d)}}
-      for(const i in ais)ais[i].update(dt,match.players[i],match,+i);match.update(dt);flush()}
+      for(const i in ais)ais[i].update(dt,match.players[i],match,+i);match.update(dt);flush();
+      const w=match.over?0:warnSecond(match.timeLeft);if(w!==lastWarn){if(w)audio.play("count");lastWarn=w}}   // 最後 5 秒每秒嗶一聲
+    else if(settle>0){const before=Math.ceil(settle);settle-=dt;   // 結束後倒數，數完才出結算
+      if(settle<=0){settle=0;showResult()}else if(Math.ceil(settle)!==before)audio.play("count")}
     if(match.over&&!scored){scored=true;audio.stopMusic();const m=match;
       if(cfg.kind==="sprint"&&m.success&&(records.sprint==null||m.finish[0]<records.sprint)){records.sprint=+m.finish[0].toFixed(2);note="新紀錄！"}
       if(cfg.kind==="marathon"&&(records.marathon==null||m.players[0].lines>records.marathon)){records.marathon=m.players[0].lines;note="新紀錄！"}
       if(cfg.kind==="score"&&(records.score==null||m.players[0].score>records.score)&&!(diff===null)){records.score=m.players[0].score;note="新的最高分！"}
       save("taco-blocks-records",records);
       if(m.players.length===2&&(m.winner===0||m.winner===1))wins[m.winner]++;
-      audio.play(m.winner===0||m.success||(diff===null&&m.winner===1)?"win":"dead");setTimeout(()=>{if(state==="play"&&match===m)showResult()},1000)}}
+      audio.play(m.winner===0||m.success||(diff===null&&m.winner===1)?"win":"dead");settle=SETTLE_SECS;lastWarn=0}}
   render(dt);requestAnimationFrame(frame)}
 
 const GOALS={battle:"2 分鐘內盡量把對手頂到頂（KO）",score:"2 分鐘內拿最高分",attack:`先送出 ${ATTACK_GOAL} 行攻擊`,survival:"別被頂到頂，撐到對手倒下",sprint:"盡快消掉 40 行",marathon:"撐過 15 關"};
@@ -60,7 +63,22 @@ function render(dt){ctx.clearRect(0,0,W,H);const T=th();canvasBtns=[];
     else{ctx.fillStyle="#0b0920dd";ctx.fillRect(W/2-bw2/2,by-bh2/2,bw2,bh2);ctx.strokeStyle="#ff3fd0";ctx.lineWidth=2;ctx.strokeRect(W/2-bw2/2,by-bh2/2,bw2,bh2)}
     text(NET.resuming?"READY":"GOAL",W/2,by-bh2/2+CELL*.9,Math.max(12,CELL*.6),T.gold,"center",T.font);
     text(NET.resuming?"兩邊一起繼續":GOALS[cfg.kind]||"",W/2,by-bh2/2+CELL*1.9,Math.max(13,CELL*.62),"#fff");
-    if(!T.frame){ctx.shadowColor="#ffc933";ctx.shadowBlur=20}text(String(Math.ceil(countdown)),W/2,by+CELL*1.2,CELL*2.6,T.gold,"center",T.font==="toon"?"toon":"pixel");ctx.restore()}}
+    if(!T.frame){ctx.shadowColor="#ffc933";ctx.shadowBlur=20}text(String(Math.ceil(countdown)),W/2,by+CELL*1.2,CELL*2.6,T.gold,"center",T.font==="toon"?"toon":"pixel");ctx.restore()}
+  // 限時模式最後 5 秒：半透明大數字，不擋住方塊
+  const w=countdown>0||match.over?0:warnSecond(t);
+  if(w){const by=oy+ROWS*CELL/2;ctx.save();ctx.globalAlpha=.55;
+    text("即將結束",W/2,by-CELL*2.2,Math.max(13,CELL*.7),"#ff4d6a","center",T.font);
+    text(String(w),W/2,by+CELL*.6,CELL*3.2,"#ff4d6a","center",T.font==="toon"?"toon":"pixel");ctx.restore()}
+  // 結束後：先告訴你「結束了」，倒數完才出結算（倒數中按鍵不會重開下一局）
+  if(match.over&&settle>0){   // 手機格子小：行距和框高都照字體大小算，三行才不會疊在一起
+    const f1=Math.max(12,CELL*.6),f2=Math.max(13,CELL*.62),ns=Math.max(30,CELL*2.6),pad=Math.max(8,CELL*.4);
+    const bw2=Math.min(W-40,Math.max(CELL*16,f2*11)),bh2=pad*2+f1*1.2+f2*1.4+ns*1.1,by=oy+ROWS*CELL/2,top=by-bh2/2;ctx.save();
+    if(T.frame){rr(W/2-bw2/2,top,bw2,bh2,18);ctx.fillStyle="#1d1d2bee";ctx.fill();ctx.lineWidth=4;ctx.strokeStyle="#ffd23f";ctx.stroke()}
+    else{ctx.fillStyle="#0b0920dd";ctx.fillRect(W/2-bw2/2,top,bw2,bh2);ctx.strokeStyle="#ff3fd0";ctx.lineWidth=2;ctx.strokeRect(W/2-bw2/2,top,bw2,bh2)}
+    const y1=top+pad+f1*.6,y2=y1+f1*.6+f2*.8,y3=y2+f2*.7+ns*.55;
+    text("FINISH",W/2,y1,f1,T.gold,"center",T.font);
+    text("遊戲結束，準備結算",W/2,y2,f2,"#fff");
+    if(!T.frame){ctx.shadowColor="#ffc933";ctx.shadowBlur=20}text(String(Math.ceil(settle)),W/2,y3,ns,T.gold,"center",T.font==="toon"?"toon":"pixel");ctx.restore()}}
 
 const rain=Array.from({length:22},()=>({k:KINDS[Math.floor(Math.random()*7)],x:Math.random(),y:Math.random(),v:.03+Math.random()*.05,r:Math.floor(Math.random()*4)}));
 function drawAttract(){const s=Math.max(14,Math.min(W,H)/24);
