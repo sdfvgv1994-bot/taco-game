@@ -10,7 +10,7 @@
 
 ## 網頁版：taco 方塊對戰
 
-**https://sdfvgv1994-bot.github.io/taco-game/** ，手機、電腦打開就能玩，不用安裝也不用登入。
+[**https://sdfvgv1994-bot.github.io/taco-game/**](https://sdfvgv1994-bot.github.io/taco-game/)，手機、電腦打開就能玩，不用安裝也不用登入。
 
 - 模式：KO 對戰、分數對戰、攻擊對戰、生死戰、Sprint 40、Marathon；可以對電腦，或兩個人用同一台
 - **裝到手機桌面**：打開網址後，主選單按「📲 安裝到桌面」（Android 的 Chrome、Edge）；iPhone 用 Safari 的「分享 → 加入主畫面」。
@@ -28,14 +28,15 @@
 
 Windows 的 `.bat` 啟動檔出錯時，視窗會停住顯示錯誤訊息，也會記在 `.cache\` 裡的 `*_log.txt`。
 
-## taco 星際戰機
+## 其他 taco 遊戲
 
-直式太空射擊遊戲，有自己的網站：**https://sdfvgv1994-bot.github.io/taco-games2/**（程式在 [taco-games2](https://github.com/sdfvgv1994-bot/taco-games2)）。
-手指按著拖就能移動和連射，三關打到 UFO 大魔王；一樣可以裝到手機桌面。
+每個都有自己的網站，手機打開就能玩，也都能裝到手機桌面。
 
-## taco 歌單
-
-YouTube 歌單播放器搬到自己的網站：**https://sdfvgv1994-bot.github.io/taco-music/**（程式在 [taco-music](https://github.com/sdfvgv1994-bot/taco-music)）。舊網址 `/taco-game/player/` 會自動轉過去。
+| 遊戲 | 網站 | 程式 |
+|---|---|---|
+| taco 星際戰機：直式太空射擊，手指按著拖就移動和連射，三關打到 UFO 大魔王 | [taco-games2](https://sdfvgv1994-bot.github.io/taco-games2/) | [repo](https://github.com/sdfvgv1994-bot/taco-games2) |
+| taco 下樓梯：小朋友下樓梯，踩平台往下、別碰到天花板的刺 | [taco-nsshaft](https://sdfvgv1994-bot.github.io/taco-nsshaft/) | [repo](https://github.com/sdfvgv1994-bot/taco-nsshaft) |
+| 泡泡花園：按住拖曳瞄準（會顯示反彈路線），放開發射，三個同色就消掉 | [taco-bubble](https://sdfvgv1994-bot.github.io/taco-bubble/) | [repo](https://github.com/sdfvgv1994-bot/taco-bubble) |
 
 ## 安裝
 
